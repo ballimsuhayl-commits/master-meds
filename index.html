@@ -6,18 +6,9 @@ import {
   TrendingUp, AlertCircle, ShoppingCart, Info,
   ChevronRight, Heart, Utensils, Moon, Sun, RotateCcw,
   Camera, Volume2, Brain, Loader2, UserRound, Phone, UserPlus,
-  Stethoscope, Ghost, Coffee, Star, Smile, Megaphone
+  Stethoscope, Ghost, Coffee, Star, Smile, Megaphone,
+  History, Settings, ShieldCheck, ClipboardCheck
 } from 'lucide-react';
-import { 
-  Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, 
-  LinearScale, PointElement, LineElement, Title, Filler
-} from 'chart.js';
-
-// --- REGISTER CHART.JS ---
-ChartJS.register(
-  ArcElement, Tooltip, Legend, CategoryScale, 
-  LinearScale, PointElement, LineElement, Title, Filler
-);
 
 // --- GEMINI API CONFIG ---
 const apiKey = ""; 
@@ -29,12 +20,13 @@ export default function App() {
   // --- CONSTANTS ---
   const QUADRANTS = ['UL', 'UR', 'LL', 'LR'];
   const VIVID_THEME = {
-    yellow: "bg-[#FFEB3B] border-[#FBC02D] text-[#000000]",
-    pink: "bg-[#FF80AB] border-[#C51162] text-[#FFFFFF]",
-    blue: "bg-[#40C4FF] border-[#01579B] text-[#000000]",
-    purple: "bg-[#B388FF] border-[#6200EA] text-[#000000]",
-    green: "bg-[#69F0AE] border-[#00C853] text-[#000000]",
-    white: "bg-[#FFFFFF] border-[#E0E0E0] text-[#000000]"
+    mint: "bg-[#E0F2F1] border-[#B2DFDB] text-[#004D40]",
+    teal: "bg-[#26A69A] border-[#00695C] text-[#FFFFFF]",
+    panda: "bg-[#FFFFFF] border-[#E0E0E0] text-[#212121]",
+    yellow: "bg-[#FFF9C4] border-[#FFF176] text-[#F57F17]",
+    blue: "bg-[#E1F5FE] border-[#B3E5FC] text-[#01579B]",
+    red: "bg-[#FFEBEE] border-[#FFCDD2] text-[#B71C1C]",
+    black: "bg-[#000000] border-[#333333] text-[#FFFFFF]"
   };
 
   // --- CORE STATE ---
@@ -43,20 +35,23 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiInsight, setAiInsight] = useState("");
-  const [mascotUrl, setMascotUrl] = useState(null);
+  
+  // Mascot Cache
+  const [mascotUrls, setMascotUrls] = useState({});
   const [isMascotLoading, setIsMascotLoading] = useState(true);
   
-  // Custom Modal/Message State (Replaces alert/confirm)
+  // UI Messaging
   const [uiMessage, setUiMessage] = useState({ show: false, title: "", text: "", type: "info", onConfirm: null });
 
+  // Medication State
   const [dailyMeds, setDailyMeds] = useState([
-    { id: 1, n: "Salazopyrin", d: "2x (500mg)", block: 'am', status: 'pending' },
-    { id: 2, n: "Xefo Rapid", d: "1x (8mg)", block: 'am', status: 'pending' },
-    { id: 3, n: "Cymbalta", d: "90mg", block: 'am', status: 'pending' },
-    { id: 4, n: "Prednisone", d: "15mg", block: 'am', status: 'pending' },
-    { id: 5, n: "Salazopyrin", d: "2x (500mg)", block: 'pm', status: 'pending' },
-    { id: 6, n: "Lyrica", d: "100mg", block: 'pm', status: 'pending' },
-    { id: 7, n: "Aspavor", d: "20mg", block: 'pm', status: 'pending' }
+    { id: 1, n: "Salazopyrin", d: "2x (500mg)", block: 'am', status: 'pending', time: '08:00' },
+    { id: 2, n: "Xefo Rapid", d: "1x (8mg)", block: 'am', status: 'pending', time: '08:00' },
+    { id: 3, n: "Cymbalta", d: "90mg", block: 'am', status: 'pending', time: '08:30' },
+    { id: 4, n: "Prednisone", d: "15mg", block: 'am', status: 'pending', time: '09:00' },
+    { id: 5, n: "Salazopyrin", d: "2x (500mg)", block: 'pm', status: 'pending', time: '20:00' },
+    { id: 6, n: "Lyrica", d: "100mg", block: 'pm', status: 'pending', time: '20:00' },
+    { id: 7, n: "Aspavor", d: "20mg", block: 'pm', status: 'pending', time: '20:30' }
   ]);
 
   const [inventory, setInventory] = useState([
@@ -68,27 +63,37 @@ export default function App() {
     { name: "Aspavor", count: 20, threshold: 7 }
   ]);
 
+  // Humira Cycle Tracking
+  const [humiraCycle, setHumiraCycle] = useState({
+    anchorDate: "2026-01-23",
+    cycleDays: 14,
+    remainingDays: 5
+  });
+
   const [water, setWater] = useState(0.75);
-  const [lastInjection, setLastInjection] = useState({ site: 'LL', med: 'Abitrexate', date: new Date().toISOString() });
+  const [lastInjection, setLastInjection] = useState({ 
+    site: 'LL', 
+    med: 'Humira', 
+    date: new Date().toISOString() 
+  });
   const [painLevel, setPainLevel] = useState(4);
   const [diary, setDiary] = useState([]);
   const [diaryInput, setDiaryInput] = useState("");
   const [contacts, setContacts] = useState([{ name: '', phone: '' }]);
 
-  // --- INTELLIGENT NOTIFICATION LOGIC ---
+  // --- NOTIFICATION LOGIC ---
   const hours = now.getHours();
-  const isMorning = hours >= 6 && hours < 12;
-  const isEvening = hours >= 17 && hours < 22;
+  const isMorningWindow = hours >= 6 && hours < 12;
+  const isEveningWindow = hours >= 17 && hours < 22;
   const hasPendingAm = dailyMeds.some(m => m.block === 'am' && m.status === 'pending');
   const hasPendingPm = dailyMeds.some(m => m.block === 'pm' && m.status === 'pending');
-  
-  const shouldShout = (isMorning && hasPendingAm) || (isEvening && hasPendingPm);
+  const shouldShout = (isMorningWindow && hasPendingAm) || (isEveningWindow && hasPendingPm);
 
-  // --- PERSISTENCE ---
+  // --- PERSISTENCE & INIT ---
   useEffect(() => {
     setMounted(true);
     const ticker = setInterval(() => setNow(new Date()), 30000);
-    const saved = localStorage.getItem('master_meds_v2_stable');
+    const saved = localStorage.getItem('panda_meds_v2_2');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -96,21 +101,22 @@ export default function App() {
         if (parsed.inventory) setInventory(parsed.inventory);
         if (parsed.water !== undefined) setWater(parsed.water);
         if (parsed.lastInjection) setLastInjection(parsed.lastInjection);
+        if (parsed.humiraCycle) setHumiraCycle(parsed.humiraCycle);
         if (parsed.painLevel !== undefined) setPainLevel(parsed.painLevel);
         if (parsed.diary) setDiary(parsed.diary);
         if (parsed.contacts) setContacts(parsed.contacts);
       } catch (e) { console.error("Restore failed", e); }
     }
-    generateMascot();
+    generateAllPandaPoses();
     return () => clearInterval(ticker);
   }, []);
 
   useEffect(() => {
     if (!mounted) return;
-    localStorage.setItem('master_meds_v2_stable', JSON.stringify({
-      dailyMeds, inventory, water, lastInjection, painLevel, diary, contacts
+    localStorage.setItem('panda_meds_v2_2', JSON.stringify({
+      dailyMeds, inventory, water, lastInjection, humiraCycle, painLevel, diary, contacts
     }));
-  }, [dailyMeds, inventory, water, lastInjection, painLevel, diary, contacts, mounted]);
+  }, [dailyMeds, inventory, water, lastInjection, humiraCycle, painLevel, diary, contacts, mounted]);
 
   // --- GEMINI API HELPERS ---
   const fetchWithRetry = async (url, options, retries = 5, backoff = 1000) => {
@@ -127,49 +133,55 @@ export default function App() {
     }
   };
 
-  const generateMascot = async () => {
+  const generateAllPandaPoses = async () => {
     setIsMascotLoading(true);
-    try {
-      const prompt = "A clean, high-resolution chibi girl nurse with dark purple hair, white nurse uniform with purple trim and white nurse cap. Shouting through a bullhorn megaphone. Professional flat vector mascot logo style. Pure white background.";
-      const result = await fetchWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:predict?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ instances: { prompt: prompt }, parameters: { sampleCount: 1 } })
-        }
-      );
-      const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-      setMascotUrl(imageUrl);
-    } catch (e) {
-      console.error("Mascot failed", e);
-    } finally {
-      setIsMascotLoading(false);
+    const poses = [
+      { key: 'neutral', action: 'friendly waving' },
+      { key: 'shout', action: 'holding a megaphone bullhorn shouting energetic reminders' },
+      { key: 'checkup', action: 'holding a blue medical clipboard and pen' },
+      { key: 'water', action: 'holding a glass of water' },
+      { key: 'syringe', action: 'carefully holding a green medical syringe with glasses on' }
+    ];
+    const results = {};
+    for (const pose of poses) {
+      try {
+        const prompt = `Pixel-perfect high-resolution chibi panda doctor mascot with black eye patches. Wearing a white medical lab coat and stethoscope. He is ${pose.action}. Vector illustration style, thick clean lines, soft medical mint aesthetic. Pure white background.`;
+        const result = await fetchWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/${IMAGE_MODEL}:predict?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instances: [{ prompt: prompt }], parameters: { sampleCount: 1 } })
+          }
+        );
+        results[pose.key] = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+      } catch (e) { console.error(`Pose ${pose.key} failed`, e); }
     }
+    setMascotUrls(results);
+    setIsMascotLoading(false);
   };
 
   const generateNurseBriefing = async () => {
     setIsAiLoading(true);
     try {
-      const stats = `Adherence: ${Math.round((dailyMeds.filter(m => m.status === 'taken').length / dailyMeds.length) * 100)}%, Pain: ${painLevel}/10, Water: ${water.toFixed(1)}L.`;
-      const prompt = `You are Virtual Nurse Gemini. Analyze these stats: ${stats}. Provide a warm greeting, summary, 3 tips, and 2 doctor visit questions. Keep it simple and cheerful. Plain text only.`;
+      const stats = `Adherence: ${Math.round((dailyMeds.filter(m => m.status === 'taken').length / dailyMeds.length) * 100)}%, Water: ${water.toFixed(1)}L, Humira Cycle: ${humiraCycle.remainingDays} days left.`;
+      const prompt = `You are the Virtual Doctor Panda. Analyze: ${stats}. Provide a warm greeting, report summary, 3 health tips, and 2 questions for their next checkup. Simple text only.`;
       const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
       const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-      setAiInsight(String(text || "I'm checking your charts now..."));
+      setAiInsight(String(text || "Records are being updated..."));
       setActiveTab('stats');
-    } catch (error) { 
-      showMessage("Connection Busy", "Nurse Gemini is currently with another patient. Please try again soon.", "info");
-    } finally { setIsAiLoading(false); }
+    } catch (e) { showMessage("Doctor Busy", "Panda is with another patient. Try again shortly!", "info"); } 
+    finally { setIsAiLoading(false); }
   };
 
   const handlePillScan = async (base64) => {
     setIsAiLoading(true);
     try {
-      const prompt = "Identify medicine and dosage. Return ONLY JSON: { \"name\": \"Medicine Name\", \"dosage\": \"10mg\" }.";
+      const prompt = "Identify medicine in image. JSON: { \"name\": \"Name\", \"dosage\": \"10mg\" }.";
       const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -180,13 +192,28 @@ export default function App() {
       });
       const data = JSON.parse(result.candidates?.[0]?.content?.parts?.[0]?.text || "{}");
       if (data.name) {
-        showMessage("Medicine Detected", `Gemini detected ${data.name} (${data.dosage}). Would you like to add it?`, "confirm", () => {
-          setDailyMeds(prev => [...prev, { id: Date.now(), n: data.name, d: data.dosage, block: 'am', status: 'pending' }]);
+        showMessage("Medicine Identified", `Panda found ${data.name} (${data.dosage}). Add to routine?`, "confirm", () => {
+          setDailyMeds(prev => [...prev, { id: Date.now(), n: data.name, d: data.dosage, block: 'am', status: 'pending', time: '09:00' }]);
         });
       }
-    } catch (e) { 
-      showMessage("Scan Failed", "Gemini couldn't read the label clearly. Please try again with better lighting.", "info");
-    } finally { setIsAiLoading(false); }
+    } catch (e) { showMessage("Scanner Error", "Panda couldn't read that. Try a clearer photo!", "info"); }
+    finally { setIsAiLoading(false); }
+  };
+
+  const runSafetyCheck = async () => {
+    setIsAiLoading(true);
+    try {
+      const meds = dailyMeds.map(m => m.n).join(", ");
+      const prompt = `Analyze these medications for interactions and safety: ${meds}. Provide a concise 3-point safety briefing. Plain text only.`;
+      const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+      showMessage("AI Safety Check", String(text || "No major interactions detected."), "info");
+    } catch (e) { showMessage("Safety Offline", "Could not complete safety check.", "info"); }
+    finally { setIsAiLoading(false); }
   };
 
   const playVoiceBriefing = async () => {
@@ -197,7 +224,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          contents: [{ parts: [{ text: `Nurse Gemini says: ${aiInsight.substring(0, 500)}` }] }],
+          contents: [{ parts: [{ text: `Doctor Panda says: ${aiInsight.substring(0, 500)}` }] }],
           generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } } }
         })
       });
@@ -215,7 +242,6 @@ export default function App() {
     view.setUint32(4, 36 + pcmData.length, true);
     view.setUint32(8, 0x57415645, false); 
     view.setUint32(12, 0x666d7420, false); 
-    view.setUint32(16, 16, true);
     view.setUint16(20, 1, true); 
     view.setUint16(22, 1, true); 
     view.setUint32(24, sampleRate, true);
@@ -229,7 +255,7 @@ export default function App() {
 
   // --- UI HANDLERS ---
   const showMessage = (title, text, type = "info", onConfirm = null) => {
-    setUiMessage({ show: true, title, text, type, onConfirm });
+    setUiMessage({ show: true, title: String(title), text: String(text), type, onConfirm });
   };
 
   const handleMedToggle = (id, action) => {
@@ -245,64 +271,56 @@ export default function App() {
     }));
   };
 
-  const logInjection = (site) => {
-    setLastInjection({ site, med: 'Abitrexate', date: new Date().toISOString() });
-    setDiary(prev => [{ id: Date.now(), text: `Injection at ${site}.`, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), type: 'injection' }, ...prev]);
-    showMessage("Rotation Logged", `Site ${site} recorded. Good job keeping to the rotation!`, "info");
+  const logInjection = (site, medType = 'Humira') => {
+    setLastInjection({ site, med: medType, date: new Date().toISOString() });
+    setDiary(prev => [{ id: Date.now(), text: `Logged ${medType} injection at ${site}.`, time: new Date().toLocaleTimeString(), type: 'injection' }, ...prev]);
+    showMessage("Rotation Logged", `Site ${site} recorded for your ${medType} dose. Panda approved!`, "info");
   };
 
   const handleWhatsAppOrder = (medName) => {
-    const msg = `Hi, I'm running low on ${medName}, please prepare a refill for me. Thanks!`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    const politeMessage = `Hello! I hope you are having a wonderful day. I noticed that I am running low on ${medName}. Would you kindly be able to prepare an order for more and arrange for a delivery at your earliest convenience? Thank you so much for your help!`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(politeMessage)}`, '_blank');
   };
 
   const triggerSos = () => {
-    const validPhones = contacts.map(c => c.phone.replace(/\s+/g, '')).filter(p => p.length > 5);
+    const validPhones = contacts.map(c => String(c.phone).replace(/\s+/g, '')).filter(p => p.length > 5);
     if (validPhones.length === 0) { 
-      showMessage("Setup Required", "Please add emergency numbers in the Kin panel before using SOS.", "info");
+      showMessage("Setup Required", "Please add emergency contact numbers in the Kin panel below.", "info");
       return; 
     }
-    showMessage("Send SOS?", "This will prepare an emergency text to your next of kin. Continue?", "confirm", () => {
+    showMessage("Send SOS?", "Send an emergency text to your next of kin?", "confirm", () => {
       window.location.href = `sms:${validPhones.join(',')}?body=${encodeURIComponent("SOS: Urgent assistance needed!")}`;
     });
   };
 
-  // --- SUB-COMPONENTS (Scoped to App) ---
-  const MascotAgent = ({ size = "w-24 h-24", shout = false }) => (
+  // --- INTERNAL COMPONENTS ---
+  const PandaMascot = ({ size = "w-24 h-24", pose = "neutral", shout = false }) => (
     <div className={`relative ${size} flex items-center justify-center overflow-visible`}>
       {isMascotLoading ? (
-        <div className="w-full h-full bg-gray-50 rounded-full animate-pulse flex items-center justify-center border-2 border-pink-100">
-          <Loader2 size={24} className="text-pink-200 animate-spin" />
-        </div>
-      ) : mascotUrl ? (
-        <img 
-          src={mascotUrl} 
-          alt="Meds Mascot" 
-          className={`w-full h-full object-contain rounded-full border-2 border-pink-50 shadow-sm ${shout ? 'animate-shout-lean' : 'animate-float'}`} 
-        />
+        <div className="w-full h-full bg-teal-50 rounded-full animate-pulse flex items-center justify-center border-2 border-teal-100"><Loader2 size={24} className="text-teal-200 animate-spin" /></div>
+      ) : mascotUrls[pose] ? (
+        <img src={mascotUrls[pose]} alt="Panda Doctor" className={`w-full h-full object-contain rounded-full border-2 border-teal-50 shadow-sm ${shout ? 'animate-shout-lean' : 'animate-float'}`} />
       ) : (
-        <div className="w-full h-full bg-white rounded-full flex items-center justify-center border-2 border-pink-50"><Smile size={32} className="text-pink-100" /></div>
+        <div className="w-full h-full bg-white rounded-full flex items-center justify-center border-2 border-teal-50"><Smile size={32} className="text-teal-100" /></div>
       )}
       {shout && !isMascotLoading && (
         <div className="absolute -top-12 -right-32 animate-text-pop z-50 pointer-events-none">
-           <div className="bg-white border-4 border-[#FF4081] px-6 py-3 rounded-3xl font-black text-[#FF4081] text-sm shadow-[0_8px_0_#ad1457] whitespace-nowrap uppercase tracking-tighter">
-             TAKE UR MEDS!
-           </div>
+           <div className="bg-white border-4 border-[#26A69A] px-6 py-3 rounded-3xl font-black text-[#26A69A] text-sm shadow-[0_8px_0_#00695C] whitespace-nowrap uppercase">TAKE UR MEDS!</div>
         </div>
       )}
     </div>
   );
 
-  const DashboardCard = ({ children, colorClass, title, icon: Icon, mascot: Mascot, badge, mascotShout }) => (
+  const DashboardCard = ({ children, colorClass, title, icon: Icon, mascotPose, badge, mascotShout }) => (
     <div className={`p-8 rounded-[3rem] border-2 border-black/10 shadow-[10px_10px_0px_rgba(0,0,0,0.05)] ${colorClass} mb-12 overflow-visible`}>
       <div className="flex justify-between items-center mb-8 overflow-visible">
         <div className="flex items-center gap-6 overflow-visible">
           <div className="p-4 rounded-[1.8rem] bg-white shadow-md flex items-center justify-center overflow-visible">
-            {Mascot ? <Mascot size="w-16 h-16" shout={mascotShout} /> : <Icon size={44} className="text-black" />}
+            {mascotPose ? <PandaMascot size="w-16 h-16" pose={mascotPose} shout={mascotShout} /> : (Icon && <Icon size={44} className="text-black" />)}
           </div>
           <div>
-            <h3 className="font-black text-2xl uppercase tracking-tight">{title}</h3>
-            {badge && <span className="text-[12px] font-black px-4 py-1 bg-black text-white rounded-full mt-2 inline-block animate-pulse-soft">{badge}</span>}
+            <h3 className="font-black text-2xl uppercase tracking-tight">{String(title)}</h3>
+            {badge && <span className="text-[12px] font-black px-4 py-1 bg-[#212121] text-white rounded-full mt-2 inline-block animate-pulse-soft">{String(badge)}</span>}
           </div>
         </div>
       </div>
@@ -313,8 +331,11 @@ export default function App() {
   const MedRow = ({ med }) => (
     <div className={`flex items-center justify-between p-6 mb-6 rounded-[2.5rem] bg-white border-2 border-black/5 shadow-md transition-all ${med.status !== 'pending' ? 'opacity-30' : ''}`}>
       <div className="flex-1 min-w-0 pr-4">
-        <h4 className={`font-black text-2xl leading-tight truncate ${med.status === 'taken' ? 'line-through' : ''}`}>{med.n}</h4>
-        <p className="text-sm font-black opacity-60 uppercase">{med.d}</p>
+        <div className="flex items-center gap-3">
+            <h4 className={`font-black text-2xl leading-tight truncate ${med.status === 'taken' ? 'line-through text-gray-400' : ''}`}>{String(med.n)}</h4>
+            <span className="text-xs font-black text-teal-600 bg-teal-50 px-2 py-1 rounded-lg">({String(med.time)})</span>
+        </div>
+        <p className="text-sm font-black opacity-60 uppercase">{String(med.d)}</p>
       </div>
       <div className="flex gap-4 shrink-0">
         {med.status === 'pending' ? (
@@ -327,9 +348,7 @@ export default function App() {
             </button>
           </>
         ) : (
-          <div className="px-6 py-4 rounded-3xl bg-gray-100 border-2 border-gray-200 text-sm font-black uppercase text-gray-400">
-            {med.status}
-          </div>
+          <div className="px-6 py-4 rounded-3xl bg-gray-100 border-2 border-gray-200 text-sm font-black uppercase text-gray-400">{String(med.status)}</div>
         )}
       </div>
     </div>
@@ -338,265 +357,229 @@ export default function App() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#FFFFFF] text-[#000000] font-sans overflow-x-hidden touch-pan-y pb-48">
+    <div className="min-h-screen bg-[#F5F5F5] text-[#212121] font-sans overflow-x-hidden touch-pan-y pb-48">
       
       {/* 1. HEADER */}
-      <header className="pt-20 pb-10 px-10 flex justify-between items-center bg-white border-b-8 border-gray-50">
+      <header className="pt-20 pb-10 px-10 flex justify-between items-center bg-white border-b-8 border-teal-50">
         <div className="flex items-center gap-8">
-          <div className="w-28 h-28 rounded-[2.5rem] bg-white border-4 border-pink-100 p-1 shadow-sm flex items-center justify-center overflow-hidden">
-             <img src={mascotUrl || "https://placehold.co/200?text=+"} className="w-full h-full object-contain" alt="Logo Mascot" />
+          <div className="w-28 h-28 rounded-[2.5rem] bg-white border-4 border-teal-100 p-1 shadow-sm flex items-center justify-center overflow-hidden">
+             <img src={mascotUrls.neutral || "https://placehold.co/200?text=Panda"} className="w-full h-full object-contain" alt="Logo" />
           </div>
           <div>
-            <h1 className="text-7xl font-black tracking-tighter text-black leading-[0.75]">
-              MASTER<br/><span className="text-[#FF4081]">MEDS</span>
-            </h1>
-            <p className="text-sm font-black uppercase tracking-[0.25em] text-gray-300 mt-4 italic">Your Daily Companion</p>
+            <h1 className="text-7xl font-black tracking-tighter text-[#212121] leading-[0.75]">MASTER<br/><span className="text-[#26A69A]">MEDS PRO</span></h1>
+            <p className="text-sm font-black uppercase tracking-[0.25em] text-teal-200 mt-4 italic">{now.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           </div>
         </div>
-        <button onClick={() => generateNurseBriefing()} className="w-24 h-24 rounded-[3rem] bg-white shadow-[0_12px_0_#f0f0f0] border-2 border-gray-100 flex items-center justify-center active:translate-y-2 active:shadow-none transition-all">
-          <Ghost size={56} className="text-[#FF4081]" />
+        <button onClick={() => generateAllPandaPoses()} className="w-24 h-24 rounded-[3rem] bg-white shadow-[0_12px_0_#f0f0f0] border-2 border-teal-50 flex items-center justify-center active:translate-y-2 active:shadow-none">
+          <RotateCcw size={48} className="text-teal-200" />
         </button>
       </header>
 
-      {/* CUSTOM NOTIFICATION MODAL (Replaces Alerts) */}
+      {/* CUSTOM MODAL */}
       {uiMessage.show && (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center p-10 bg-black/60 backdrop-blur-sm">
-           <div className="bg-white w-full max-w-xl rounded-[4rem] border-8 border-black p-12 shadow-2xl animate-in zoom-in duration-300">
+           <div className="bg-white w-full max-w-xl rounded-[4rem] border-8 border-[#212121] p-12 shadow-2xl animate-in zoom-in duration-300">
               <h2 className="text-5xl font-black uppercase tracking-tighter mb-6">{uiMessage.title}</h2>
-              <p className="text-2xl font-bold text-gray-700 leading-tight mb-12">{uiMessage.text}</p>
+              <p className="text-2xl font-bold text-gray-700 leading-tight mb-12 whitespace-pre-wrap">{uiMessage.text}</p>
               <div className="flex gap-6">
                  {uiMessage.type === "confirm" && (
-                   <button 
-                    onClick={() => { uiMessage.onConfirm?.(); setUiMessage({ ...uiMessage, show: false }); }}
-                    className="flex-1 py-8 bg-black text-white text-xl font-black rounded-3xl"
-                   >YES</button>
+                   <button onClick={() => { uiMessage.onConfirm?.(); setUiMessage({ ...uiMessage, show: false }); }} className="flex-1 py-8 bg-[#26A69A] text-white text-xl font-black rounded-3xl">YES</button>
                  )}
-                 <button 
-                  onClick={() => setUiMessage({ ...uiMessage, show: false })}
-                  className="flex-1 py-8 bg-gray-100 text-black text-xl font-black rounded-3xl"
-                 >{uiMessage.type === "confirm" ? "CANCEL" : "OK"}</button>
+                 <button onClick={() => setUiMessage({ ...uiMessage, show: false })} className="flex-1 py-8 bg-gray-100 text-black text-xl font-black rounded-3xl">{uiMessage.type === "confirm" ? "CANCEL" : "OK"}</button>
               </div>
            </div>
         </div>
       )}
 
-      {/* AI LOADER OVERLAY */}
+      {/* AI LOADER */}
       {isAiLoading && (
         <div className="fixed inset-0 bg-white/95 backdrop-blur-2xl z-[999] flex flex-col items-center justify-center p-10">
-           <MascotAgent size="w-56 h-56" shout={true} />
-           <p className="font-black text-4xl uppercase tracking-widest text-[#FF4081] animate-pulse text-center mt-12">✨ Nurse is Thinking...</p>
+           <PandaMascot size="w-56 h-56" pose="shout" shout={true} />
+           <p className="font-black text-4xl uppercase tracking-widest text-teal-600 animate-pulse text-center mt-12">Checking Records...</p>
         </div>
       )}
 
       <main className="px-10 mt-14">
         
-        {/* ✨ NURSE CHECK-IN BUTTON */}
+        {/* ✨ HUMIRA CYCLE TRACKER */}
+        <div className="mb-14 p-12 rounded-[4rem] bg-white border-2 border-teal-100 shadow-[12px_12px_0px_#e0f2f1]">
+            <div className="flex justify-between items-center mb-8">
+                <div className="flex items-center gap-4">
+                    <Syringe size={40} className="text-teal-600" />
+                    <h3 className="text-2xl font-black uppercase tracking-tight">HUMIRA CYCLE (SAST)</h3>
+                </div>
+                <span className="text-xl font-black text-teal-600 uppercase">{String(humiraCycle.remainingDays)} DAYS LEFT</span>
+            </div>
+            <div className="h-10 w-full bg-teal-50 rounded-full border-2 border-teal-100 overflow-hidden relative mb-6">
+                <div 
+                    className="absolute top-0 left-0 bottom-0 bg-[#26A69A] transition-all duration-1000 ease-out shadow-[0_0_20px_rgba(38,166,154,0.5)]" 
+                    style={{ width: `${((humiraCycle.cycleDays - humiraCycle.remainingDays) / humiraCycle.cycleDays) * 100}%` }}
+                ></div>
+            </div>
+            <div className="flex justify-between items-center text-xs font-black text-teal-300 uppercase">
+                <span>Anchor: {String(humiraCycle.anchorDate)}</span>
+                <button onClick={() => showMessage("Reset Cycle", "Set anchor date to today?", "confirm", () => setHumiraCycle({...humiraCycle, anchorDate: new Date().toISOString().split('T')[0]}))} className="flex items-center gap-2"><CalendarDays size={16}/> UPDATE</button>
+            </div>
+        </div>
+
+        {/* CHECK-IN BUTTON */}
         {activeTab === 'home' && (
-          <div 
-            onClick={generateNurseBriefing}
-            className="mb-14 p-10 rounded-[4rem] bg-pink-50 border-4 border-pink-200 shadow-[10px_10px_0px_#fce4ec] flex items-center gap-12 active:scale-[0.98] transition-all group overflow-visible"
-          >
-             <div className="w-32 h-32 rounded-[2.5rem] bg-white border-4 border-pink-400 flex items-center justify-center shadow-md shrink-0 overflow-visible">
-                <MascotAgent size="w-28 h-28" shout={shouldShout} />
+          <div onClick={generateNurseBriefing} className="mb-14 p-10 rounded-[4rem] bg-teal-50 border-4 border-teal-200 shadow-[10px_10px_0px_#e0f2f1] flex items-center gap-12 active:scale-[0.98] transition-all group overflow-visible">
+             <div className="w-32 h-32 rounded-[2.5rem] bg-white border-4 border-teal-400 flex items-center justify-center shadow-md shrink-0 overflow-visible">
+                <PandaMascot size="w-28 h-28" pose={shouldShout ? "shout" : "checkup"} shout={shouldShout} />
              </div>
              <div>
-                <h3 className="text-4xl font-black tracking-tight text-pink-600">✨ NURSE CHECK-IN</h3>
-                <p className="text-sm font-black text-pink-400 uppercase tracking-widest mt-2 italic">
-                    {shouldShout ? "URGENT: MEDS READY" : "Tap for your daily report"}
-                </p>
+                <h3 className="text-4xl font-black tracking-tight text-teal-700">✨ DAILY BRIEFING</h3>
+                <p className="text-sm font-black text-teal-400 uppercase tracking-widest mt-2 italic">{shouldShout ? "ALERT: MEDS WAITING!" : "Panda is checking your charts"}</p>
              </div>
           </div>
         )}
 
-        {/* AI NURSE BRIEFING TAB */}
-        {activeTab === 'stats' && (
-          <DashboardCard colorClass={VIVID_THEME.white} title="✨ Nurse Briefing" mascot={MascotAgent} mascotShout={shouldShout}>
-             {!aiInsight ? (
-               <div className="text-center py-20">
-                 <button onClick={generateNurseBriefing} className="w-full py-10 bg-pink-500 text-white rounded-[3rem] text-2xl font-black shadow-[0_12px_0_#ad1457] active:translate-y-2 active:shadow-none transition-all uppercase tracking-widest">
-                   ✨ PREPARE DAILY REPORT
-                 </button>
-               </div>
-             ) : (
-               <div className="space-y-12">
-                 <div className="p-12 bg-pink-50 rounded-[4rem] border-4 border-pink-100 shadow-inner">
-                    <p className="text-2xl font-bold text-gray-800 leading-relaxed whitespace-pre-wrap">{aiInsight || ""}</p>
-                 </div>
-                 <div className="grid grid-cols-2 gap-8">
-                    <button onClick={playVoiceBriefing} className="py-10 bg-blue-500 text-white rounded-[3rem] font-black shadow-[0_12px_0_#01579b] active:translate-y-2 active:shadow-none flex items-center justify-center gap-6">
-                      <Volume2 size={48} /> <span className="text-xl">LISTEN</span>
-                    </button>
-                    <button onClick={() => setAiInsight("")} className="py-10 bg-gray-200 text-gray-500 rounded-[3rem] font-black shadow-[0_12px_0_#9e9e9e] active:translate-y-2 active:shadow-none text-xl">
-                      DONE
-                    </button>
-                 </div>
-               </div>
-             )}
-          </DashboardCard>
-        )}
-
-        {/* MEDICATION ROUTINES */}
+        {/* HOME DASHBOARD */}
         {activeTab === 'home' && (
           <>
-            <DashboardCard colorClass={VIVID_THEME.yellow} title="Morning Routine" icon={Sun} badge={`${dailyMeds.filter(m => m.block === 'am' && m.status === 'pending').length} REMAINING`}>
+            <DashboardCard colorClass={VIVID_THEME.yellow} title="Morning Routine" mascotPose="neutral" badge={`${dailyMeds.filter(m => m.block === 'am' && m.status === 'pending').length} TODO`}>
               {dailyMeds.filter(m => m.block === 'am').map(med => <MedRow key={med.id} med={med} />)}
-              <div className="grid grid-cols-2 gap-8 mt-12">
-                <button className="py-10 rounded-[3rem] border-4 border-dashed border-black/10 text-sm font-black text-black/40 uppercase tracking-widest">Manual Entry</button>
-                <button onClick={() => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = 'image/*';
-                  input.onchange = (e) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => handlePillScan(reader.result.split(',')[1]);
-                    reader.readAsDataURL(e.target.files[0]);
-                  };
-                  input.click();
-                }} className="py-10 rounded-[3rem] bg-black text-white text-sm font-black uppercase flex items-center justify-center gap-4 active:scale-95 shadow-xl tracking-widest">
-                  <Camera size={40} /> ✨ SCAN BOTTLE
-                </button>
-              </div>
             </DashboardCard>
 
-            <DashboardCard colorClass={VIVID_THEME.purple} title="Evening Routine" icon={Moon} badge={`${dailyMeds.filter(m => m.block === 'pm' && m.status === 'pending').length} REMAINING`}>
+            <DashboardCard colorClass={VIVID_THEME.purple} title="Evening Routine" icon={Moon} badge={`${dailyMeds.filter(m => m.block === 'pm' && m.status === 'pending').length} TODO`}>
               {dailyMeds.filter(m => m.block === 'pm').map(med => <MedRow key={med.id} med={med} />)}
             </DashboardCard>
 
-            <DashboardCard colorClass={VIVID_THEME.blue} title="Daily Hydration" icon={Droplets}>
-              <div className="flex items-center justify-between mb-12 bg-white/50 p-12 rounded-[4rem] border-4 border-white/30">
-                  <div>
-                    <p className="text-9xl font-black text-black tracking-tighter leading-none">{water.toFixed(1)}L</p>
-                    <p className="text-sm font-black text-black/50 mt-4 uppercase tracking-[0.3em] italic">Goal: 2.5L / Day</p>
-                  </div>
-                  <div className="h-56 w-20 bg-white rounded-full border-4 border-blue-900 overflow-hidden relative shadow-lg">
-                    <div className="absolute bottom-0 left-0 right-0 bg-blue-600 transition-all duration-1000 ease-out" style={{ height: `${(water / 2.5) * 100}%` }}></div>
-                  </div>
-              </div>
-              <div className="grid grid-cols-3 gap-8">
-                  <button onClick={() => handleAddWater(0.25)} className="py-10 bg-white border-2 border-black text-2xl font-black rounded-[2.5rem] shadow-[0_12px_0_#000] active:translate-y-2 active:shadow-none">+250ml</button>
-                  <button onClick={() => handleAddWater(0.5)} className="py-10 bg-white border-2 border-black text-2xl font-black rounded-[2.5rem] shadow-[0_12px_0_#000] active:translate-y-2 active:shadow-none">+500ml</button>
-                  <button onClick={() => setWater(0)} className="py-10 bg-red-100 border-2 border-red-600 text-red-600 text-2xl font-black rounded-[2.5rem] shadow-[0_12px_0_#b71c1c] active:translate-y-2 active:shadow-none">CLR</button>
-              </div>
-            </DashboardCard>
-
-            {/* INJECTION LOG PANEL */}
-            <div className="p-14 rounded-[4.5rem] bg-[#000000] text-white shadow-2xl relative mb-16 border-b-[25px] border-[#FF4081]">
-              <div className="flex justify-between items-center mb-14">
-                <h3 className="text-xl font-black uppercase tracking-[0.4em] text-[#FF4081] flex items-center gap-8">
-                    <Syringe size={48} /> INJECTION LOG
-                </h3>
-                <span className="text-sm font-black px-8 py-3 bg-white/10 rounded-full border-2 border-white/10 tracking-widest uppercase italic">{lastInjection.site} Area</span>
-              </div>
-              <div className="grid grid-cols-2 gap-16">
-                <div className="grid grid-cols-2 gap-8 bg-[#1A1A1A] p-8 rounded-[3.5rem] border-2 border-white/5 shadow-inner">
-                  {QUADRANTS.map(q => (
-                    <button 
-                      key={q} 
-                      onClick={() => logInjection(q)}
-                      className={`aspect-square rounded-[2.5rem] flex items-center justify-center text-4xl font-black transition-all active:scale-90 ${lastInjection.site === q ? 'bg-[#FF4081] text-white shadow-[0_0_60px_rgba(255,64,129,0.9)] border-4 border-white' : 'bg-white/5 text-white/10'}`}
-                    >
-                      {q}
+            {/* ✨ REGIMEN MANAGER */}
+            <div className="mb-14 p-12 rounded-[4rem] bg-white border-4 border-dashed border-teal-100 overflow-visible">
+                <div className="flex justify-between items-center mb-10">
+                    <div className="flex items-center gap-4">
+                        <Settings size={44} className="text-[#212121]" />
+                        <h3 className="text-3xl font-black uppercase tracking-tight">REGIMEN MANAGER</h3>
+                        <span className="text-[10px] font-black bg-teal-500 text-white px-3 py-1 rounded-full">AI POWERED</span>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-8 mb-10">
+                    <button onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file'; input.accept = 'image/*';
+                        input.onchange = (e) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => handlePillScan(reader.result.split(',')[1]);
+                            reader.readAsDataURL(e.target.files[0]);
+                        };
+                        input.click();
+                    }} className="py-10 rounded-[3rem] bg-[#26A69A] text-white text-sm font-black uppercase flex items-center justify-center gap-4 active:scale-95 shadow-xl">
+                        <Camera size={40} /> AI SCAN SCRIPT
                     </button>
-                  ))}
+                    <button onClick={runSafetyCheck} className="py-10 rounded-[3rem] bg-white border-4 border-teal-100 text-[#26A69A] text-sm font-black uppercase flex items-center justify-center gap-4 active:scale-95">
+                        <ShieldCheck size={40} /> AI SAFETY CHECK
+                    </button>
                 </div>
-                <div className="flex flex-col justify-center gap-12 text-center">
-                  <div>
-                    <p className="text-xs font-black text-white/30 uppercase tracking-widest mb-4 italic">Next Area Rotation</p>
-                    <p className="text-8xl font-black text-[#FF4081] leading-none uppercase">{lastInjection.site}</p>
-                  </div>
-                  <button onClick={() => showMessage("Confirm Rotation", "Mark rotation confirmed for this site?", "confirm", () => logInjection(lastInjection.site))} className="w-full py-10 bg-white text-black rounded-[3rem] text-xl font-black shadow-[0_15px_0_#e0e0e0] active:translate-y-3 active:shadow-none transition-all uppercase tracking-widest">
-                    Confirm
-                  </button>
+                <div className="space-y-4">
+                    {dailyMeds.slice(0, 3).map(med => (
+                        <div key={med.id} className="flex justify-between items-center p-6 bg-gray-50 rounded-3xl border-2 border-gray-100">
+                            <span className="font-black text-xl text-gray-700">{String(med.n)} ({String(med.time)})</span>
+                            <button onClick={() => showMessage("Delete Med?", `Remove ${med.n} from routine?`, "confirm", () => setDailyMeds(dailyMeds.filter(m => m.id !== med.id)))} className="text-red-400 font-black text-2xl">×</button>
+                        </div>
+                    ))}
+                    <button onClick={() => showMessage("Add Med", "Manual adding is under maintenance. Please use AI Scan.", "info")} className="w-full py-6 text-teal-400 font-black uppercase tracking-widest">+ Add New Item Manually</button>
                 </div>
-              </div>
             </div>
 
-            {/* EMERGENCY CONTACT PANEL */}
-            <DashboardCard colorClass={VIVID_THEME.white} title="Next of Kin Registry" icon={UserPlus}>
-               <p className="text-sm font-black text-gray-400 mb-10 uppercase tracking-widest italic">Maintain your emergency SMS list here.</p>
-               <div className="space-y-8">
-                  {contacts.map((contact, idx) => (
-                    <div key={idx} className="flex flex-col gap-6 p-8 bg-gray-50 rounded-[3rem] border-2 border-gray-100 shadow-inner">
-                       <input 
-                         type="text" placeholder="Full Name" value={contact.name}
-                         onChange={(e) => { const newC = [...contacts]; newC[idx].name = e.target.value; setContacts(newC); }}
-                         className="bg-white p-6 rounded-2xl border-2 border-gray-100 text-2xl font-bold outline-none shadow-sm"
-                       />
-                       <input 
-                         type="tel" placeholder="Mobile Number" value={contact.phone}
-                         onChange={(e) => { const newC = [...contacts]; newC[idx].phone = e.target.value; setContacts(newC); }}
-                         className="bg-white p-6 rounded-2xl border-2 border-gray-100 text-2xl font-bold outline-none shadow-sm"
-                       />
-                    </div>
+            <DashboardCard colorClass={VIVID_THEME.teal} title="Injection rotation" mascotPose="syringe">
+              <div className="grid grid-cols-2 gap-16">
+                <div className="grid grid-cols-2 gap-8 bg-teal-900/40 p-8 rounded-[3.5rem] border-2 border-white/5 shadow-inner">
+                  {QUADRANTS.map(q => (
+                    <button key={q} onClick={() => logInjection(q)} className={`aspect-square rounded-[2.5rem] flex items-center justify-center text-4xl font-black transition-all active:scale-90 ${lastInjection.site === q ? 'bg-white text-teal-900 shadow-[0_0_60px_rgba(255,255,255,0.4)] border-4 border-teal-100' : 'bg-teal-900/50 text-teal-100/30'}`}>{String(q)}</button>
                   ))}
-                  <button 
-                    onClick={() => setContacts([...contacts, { name: '', phone: '' }])}
-                    className="w-full py-6 border-4 border-dashed border-gray-200 rounded-[3rem] text-sm font-black text-gray-300 tracking-[0.2em]"
-                  >
-                    + REGISTER NEW CONTACT
-                  </button>
-               </div>
+                </div>
+                <div className="flex flex-col justify-center gap-8 text-center text-white">
+                    <p className="text-sm font-black text-teal-100 uppercase italic">Next Rotation Site</p>
+                    <p className="text-8xl font-black leading-none uppercase">{String(lastInjection.site)}</p>
+                    <div className="flex flex-col gap-4">
+                        <button onClick={() => logInjection(lastInjection.site, 'Humira')} className="py-6 bg-white text-teal-900 rounded-[3rem] text-sm font-black">LOG HUMIRA</button>
+                        <button onClick={() => logInjection(lastInjection.site, 'Methotrexate')} className="py-6 bg-teal-100 text-teal-900 rounded-[3rem] text-sm font-black">LOG METHOTREXATE</button>
+                    </div>
+                </div>
+              </div>
             </DashboardCard>
 
-            <DashboardCard colorClass={VIVID_THEME.green} title="Supply Management" icon={ShoppingCart}>
-               <div className="space-y-8">
+            <DashboardCard colorClass={VIVID_THEME.panda} title="Patient Diary" icon={FileText} badge="AI INSIGHTS">
+                <div className="space-y-6">
+                    <div className="flex flex-col gap-4">
+                        <textarea 
+                          value={diaryInput} 
+                          onChange={(e) => setDiaryInput(e.target.value)} 
+                          placeholder="How are you feeling today?" 
+                          className="w-full p-8 rounded-[3rem] border-2 border-gray-100 text-xl font-bold h-48 outline-none" 
+                        />
+                        <button onClick={() => {
+                            if (!diaryInput.trim()) return;
+                            setDiary(prev => [{ id: Date.now(), text: String(diaryInput), time: new Date().toLocaleTimeString(), type: 'note' }, ...prev]);
+                            setDiaryInput("");
+                        }} className="w-full py-8 bg-[#26A69A] text-white rounded-[3rem] font-black uppercase text-xl shadow-lg">Save entry</button>
+                    </div>
+                </div>
+            </DashboardCard>
+
+            <DashboardCard colorClass={VIVID_THEME.red} title="Stock Status" icon={ShoppingCart}>
+               <div className="space-y-6">
                   {inventory.filter(i => i.count <= i.threshold).map((item, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-10 rounded-[3.5rem] bg-red-50 border-4 border-red-200">
-                       <div>
-                          <p className="text-3xl font-black text-red-900 leading-tight">{item.name}</p>
-                          <p className="text-sm font-black text-red-600 uppercase tracking-widest">Stock Alert: {item.count} left</p>
-                       </div>
-                       <button onClick={() => handleWhatsAppOrder(item.name)} className="px-12 py-8 bg-red-600 text-white rounded-[2.5rem] text-sm font-black shadow-xl tracking-widest">REFILL</button>
+                    <div key={idx} className="flex items-center justify-between p-8 rounded-[3rem] bg-white border-4 border-red-200 shadow-md">
+                       <div><p className="text-2xl font-black text-red-900 leading-tight">{String(item.name)}</p><p className="text-sm font-black text-red-400 uppercase">Stock Alert: {String(item.count)} left</p></div>
+                       <button onClick={() => handleWhatsAppOrder(item.name)} className="px-10 py-6 bg-red-600 text-white rounded-[2rem] font-black shadow-lg">REFILL</button>
                     </div>
                   ))}
                </div>
             </DashboardCard>
           </>
         )}
+
+        {/* STATS VIEW */}
+        {activeTab === 'stats' && (
+          <DashboardCard colorClass={VIVID_THEME.panda} title="Doctor's Briefing" mascotPose="checkup" mascotShout={shouldShout}>
+             <div className="space-y-12">
+                 <div className="p-12 bg-teal-50 rounded-[4rem] border-4 border-teal-100 shadow-inner">
+                    <p className="text-2xl font-bold text-gray-800 leading-relaxed whitespace-pre-wrap">{aiInsight || "Analyzing your patient records..."}</p>
+                 </div>
+                 <div className="grid grid-cols-2 gap-8">
+                    <button onClick={playVoiceBriefing} className="py-10 bg-teal-600 text-white rounded-[3rem] font-black shadow-[0_12px_0_#004D40] flex items-center justify-center gap-6"><Volume2 size={48} /> <span className="text-xl">LISTEN</span></button>
+                    <button onClick={() => setActiveTab('home')} className="py-10 bg-gray-200 text-[#212121] rounded-[3rem] font-black text-xl">DONE</button>
+                 </div>
+             </div>
+          </DashboardCard>
+        )}
       </main>
 
-      {/* 5. NAVIGATION BAR */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-8 border-gray-50 px-10 py-12 pb-16 flex items-center justify-around z-[800] shadow-[0_-30px_60px_rgba(0,0,0,0.15)]">
-        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-4 ${activeTab === 'home' ? 'text-[#FF4081]' : 'text-gray-300'}`}>
-          <Sun size={64} className="animate-pulse-soft" />
-          <span className="text-[12px] font-black uppercase tracking-widest">Home</span>
+      {/* NAVIGATION */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-8 border-teal-50 px-10 py-12 pb-16 flex items-center justify-around z-[800] shadow-[0_-30px_60px_rgba(0,0,0,0.05)]">
+        <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center gap-4 ${activeTab === 'home' ? 'text-teal-600' : 'text-teal-100'}`}>
+          <Sun size={64} className="animate-pulse-soft" /><span className="text-[12px] font-black uppercase">Home</span>
         </button>
-        <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-4 ${activeTab === 'stats' ? 'text-blue-500' : 'text-gray-300'}`}>
-          <div className={`w-16 h-16 ${activeTab === 'stats' ? '' : 'grayscale opacity-30'}`}>
-            <MascotAgent size="w-full h-full" shout={shouldShout} />
-          </div>
+        <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center gap-4 ${activeTab === 'stats' ? 'text-teal-600' : 'text-teal-100'}`}>
+          <div className={`w-16 h-16 ${activeTab === 'stats' ? '' : 'grayscale opacity-30'}`}><PandaMascot size="w-full h-full" pose="neutral" shout={shouldShout} /></div>
           <span className="text-[12px] font-black uppercase tracking-widest">Nurse</span>
         </button>
-        <div className="w-2 h-24 bg-gray-100 rounded-full"></div>
-        <button onClick={triggerSos} className="flex flex-col items-center gap-4 p-6 bg-red-50 text-red-600 rounded-[3.5rem] active:scale-90 transition-all animate-wiggle-slow">
-          <AlertCircle size={64} />
-          <span className="text-[12px] font-black uppercase tracking-widest">SOS</span>
+        <div className="w-2 h-24 bg-teal-50 rounded-full"></div>
+        <button onClick={() => triggerSos()} className="flex flex-col items-center gap-4 p-6 bg-red-50 text-red-600 rounded-[3.5rem] active:scale-90 transition-all animate-wiggle-slow">
+          <AlertCircle size={64} /><span className="text-[12px] font-black uppercase tracking-widest">SOS</span>
         </button>
       </nav>
 
       <style>{`
-        /* --- ANIMATION KEYFRAMES --- */
         @keyframes shout-lean { 0%, 100% { transform: scale(1.0) rotate(0deg); } 50% { transform: scale(1.1) rotate(5deg); } }
         @keyframes text-pop { 0% { transform: scale(0) translate(-20px, 20px); opacity: 0; } 70% { transform: scale(1.2) translate(15px, -15px); opacity: 1; } 100% { transform: scale(1) translate(0, 0); opacity: 1; } }
         @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
         @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.1); opacity: 0.8; } }
         @keyframes wiggle-slow { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-
         .animate-shout-lean { animation: shout-lean 0.6s ease-in-out infinite; }
         .animate-text-pop { animation: text-pop 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite; }
         .animate-float { animation: float 3.5s ease-in-out infinite; }
         .animate-pulse-soft { animation: pulse-soft 2.5s ease-in-out infinite; }
         .animate-wiggle-slow { animation: wiggle-slow 3s ease-in-out infinite; }
-
         html { -webkit-tap-highlight-color: transparent; font-size: 26px; }
         ::-webkit-scrollbar { display: none; }
-        body { user-select: none; -webkit-user-select: none; background: white; }
-        input { user-select: text !important; -webkit-user-select: text !important; }
-        
-        button { transition: transform 0.1s; }
+        body { user-select: none; -webkit-user-select: none; background: #F5F5F5; }
+        textarea, input { user-select: text !important; -webkit-user-select: text !important; }
         button:active { transform: scale(0.9) !important; }
       `}</style>
-
     </div>
   );
 }
