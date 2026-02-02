@@ -9,18 +9,18 @@ import {
   MessageCircle, Send, Download, BarChart3, Trophy, Lock, Key,
   Leaf, Apple, Utensils, Zap, BedDouble, Clock, Mic, FolderOpen,
   Share2, FileJson, AlertTriangle, Coffee, Sunrise, Sunset, ToggleLeft, ToggleRight,
-  Phone, Eye, CloudRain, Wind, ThermometerSun, Mail
+  Phone, Eye, CloudRain, Wind, ThermometerSun, Mail, Save
 } from 'lucide-react';
 
 /**
- * MASTER MEDS PRO - V7.3 (WHATSAPP REWIRE)
- * - Feature: Pharmacy Settings (Number/Email)
- * - Feature: Direct WhatsApp Refill Ordering
+ * MASTER MEDS PRO - V7.4 (FULL REWIRE)
+ * - Feature: Dynamic Diet Tab (Toggleable)
+ * - Feature: Editable Emergency Contact
+ * - Feature: WhatsApp Clinical Sharing
+ * - Feature: JSON Data Backup
  */
 
 // --- ASSETS & CONSTANTS ---
-// Mascots removed for professional clinical look
-
 const VIVID_THEME = {
   mint: "bg-[#E0F2F1] border-[#B2DFDB] text-[#004D40]",
   teal: "bg-[#26A69A] border-[#00695C] text-[#FFFFFF]",
@@ -72,6 +72,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [apiKeys, setApiKeys] = useState({ gemini: '' });
   const [pharmacy, setPharmacy] = useState({ name: '', phone: '', email: '' });
+  const [emergencyContact, setEmergencyContact] = useState('');
   const [now, setNow] = useState(new Date());
   
   const fileInputRef = useRef(null);
@@ -102,7 +103,6 @@ export default function App() {
   // Logic States
   const [lastInjection, setLastInjection] = useState({ site: 'LL', date: new Date().toISOString() });
   const [humiraCycle, setHumiraCycle] = useState({ anchorDate: "2026-01-23", cycleDays: 14 });
-  const [contacts, setContacts] = useState([{ name: 'Emergency', phone: '' }]);
 
   // Engines
   const [safetyAnalysis, setSafetyAnalysis] = useState(null);
@@ -134,7 +134,7 @@ export default function App() {
 
   // --- EFFECT: PERSISTENCE ---
   useEffect(() => {
-    const saved = localStorage.getItem('master_meds_v7_3');
+    const saved = localStorage.getItem('master_meds_v7_4');
     if (saved) {
       const data = JSON.parse(saved);
       if (data.meds) setMeds(data.meds);
@@ -145,18 +145,20 @@ export default function App() {
       if (data.pharmacy) setPharmacy(data.pharmacy);
       if (data.humiraCycle) setHumiraCycle(data.humiraCycle);
       if (data.lastInjection) setLastInjection(data.lastInjection);
-      if (data.contacts) setContacts(data.contacts);
+      if (data.emergencyContact) setEmergencyContact(data.emergencyContact);
       if (data.dietPlan) setDietPlan(data.dietPlan);
+      // Ensure showDietModule is boolean
+      if (typeof data.showDietModule === 'boolean') setShowDietModule(data.showDietModule);
     }
     const ticker = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(ticker);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('master_meds_v7_3', JSON.stringify({ 
-      meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, contacts, dietPlan, pharmacy
+    localStorage.setItem('master_meds_v7_4', JSON.stringify({ 
+      meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergencyContact, dietPlan, pharmacy, showDietModule
     }));
-  }, [meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, contacts, dietPlan, pharmacy]);
+  }, [meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergencyContact, dietPlan, pharmacy, showDietModule]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -193,6 +195,28 @@ export default function App() {
     const cleanPhone = pharmacy.phone.replace(/[^0-9]/g, '');
     const text = `Hi ${pharmacy.name || 'Pharmacy'}, I would like to order a refill for:\n\n💊 *${med.n}* (${med.d})\n\nPlease let me know when it is ready.`;
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleShareReport = () => {
+    const text = `*MY CLINICAL REPORT*\n\n*Wellness Score:* ${stats.wellness}%\n*Adherence Level:* ${stats.level}\n\n*Latest Analysis:*\n${safetyAnalysis?.summary || "No recent analysis."}\n\n*Current Flare Risk:* ${flareForecast?.risk || "Unknown"}`;
+    if(navigator.share) {
+       navigator.share({ title: 'My Health Report', text: text }).catch(console.error);
+    } else {
+       // Fallback to WhatsApp
+       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+    }
+  };
+
+  const handleExportData = () => {
+     const dataStr = JSON.stringify({ meds, stats, vault, diary, pharmacy }, null, 2);
+     const blob = new Blob([dataStr], { type: "application/json" });
+     const url = URL.createObjectURL(blob);
+     const link = document.createElement("a");
+     link.href = url;
+     link.download = `master_meds_backup_${new Date().toISOString().split('T')[0]}.json`;
+     document.body.appendChild(link);
+     link.click();
+     document.body.removeChild(link);
   };
 
   const handleVoiceInput = (setter) => {
@@ -390,7 +414,7 @@ export default function App() {
             </div>
             <div>
                <h1 className="text-3xl font-black text-[#212121] leading-none tracking-tighter">MASTER<br/><span className="text-teal-600">MEDS PRO</span></h1>
-               <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v7.3 WhatsApp</p>
+               <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v7.4 Rewired</p>
             </div>
          </div>
          <div className="flex flex-col items-end">
@@ -677,7 +701,7 @@ export default function App() {
                <div className="grid grid-cols-2 gap-4">
                   <button onClick={runClinicalAnalysis} className="col-span-2 py-4 bg-white text-blue-900 rounded-[1.5rem] font-black text-sm uppercase shadow-sm border border-blue-100 flex items-center justify-center gap-2"><Stethoscope size={18}/> Clinical Analysis</button>
                   <button onClick={playVoiceBriefing} className="col-span-2 py-4 bg-blue-600 text-white rounded-[1.5rem] font-black flex items-center justify-center gap-2 shadow-lg shadow-blue-200"><Volume2 size={20}/> VOICE BRIEFING</button>
-                  <button onClick={() => { navigator.clipboard.writeText(JSON.stringify(stats)); alert("Copied!"); }} className="col-span-2 py-4 bg-blue-100 text-blue-900 rounded-[1.5rem] font-black text-xs uppercase">Copy Stats</button>
+                  <button onClick={handleShareReport} className="col-span-2 py-4 bg-green-500 text-white rounded-[1.5rem] font-black text-xs uppercase flex items-center justify-center gap-2 shadow-md"><Share2 size={16}/> Share Report via WhatsApp</button>
                </div>
             </DashboardCard>
          )}
@@ -752,17 +776,30 @@ export default function App() {
                      </div>
                   </div>
                   
+                  {/* EMERGENCY CONTACT CONFIG */}
+                  <div className="mb-6 border-t border-[#444] pt-4">
+                     <h3 className="text-white font-black uppercase text-sm mb-3 flex items-center gap-2"><AlertTriangle size={16} className="text-red-500"/> SOS Contact</h3>
+                     <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
+                        <Phone size={14} className="text-red-400"/>
+                        <input value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} placeholder="Emergency Phone Number" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
+                     </div>
+                  </div>
+                  
                   <div className="flex items-center justify-between p-4 bg-[#333] rounded-2xl mb-4">
                      <span className="text-white font-bold text-sm">Clinical Nutrition</span>
                      <button onClick={() => setShowDietModule(!showDietModule)} className="text-white">{showDietModule ? <ToggleRight className="text-green-400"/> : <ToggleLeft/>}</button>
                   </div>
 
                   <button onClick={() => { 
-                     const phones = contacts.map(c => c.phone).join(',');
-                     window.location.href = `sms:${phones}?body=SOS`;
+                     const phone = emergencyContact ? emergencyContact.replace(/[^0-9]/g, '') : '';
+                     if(!phone) return alert("Please set an Emergency Contact number above first.");
+                     window.location.href = `sms:${phone}?body=SOS! I need help.`;
                   }} className="w-full py-4 bg-red-600 text-white font-black rounded-2xl uppercase mb-4 flex items-center justify-center gap-2"><AlertTriangle size={18}/> Emergency SOS</button>
 
-                  <button onClick={() => { if(confirm("Reset App?")) localStorage.clear(); window.location.reload(); }} className="w-full py-4 bg-[#444] text-red-400 font-black rounded-2xl uppercase text-xs">Factory Reset</button>
+                  <div className="grid grid-cols-2 gap-4">
+                     <button onClick={handleExportData} className="py-4 bg-[#555] text-white font-black rounded-2xl uppercase text-xs flex items-center justify-center gap-2"><Save size={16}/> Backup Data</button>
+                     <button onClick={() => { if(confirm("Reset App?")) localStorage.clear(); window.location.reload(); }} className="py-4 bg-[#444] text-red-400 font-black rounded-2xl uppercase text-xs">Factory Reset</button>
+                  </div>
                </DashboardCard>
             </div>
          )}
@@ -774,7 +811,12 @@ export default function App() {
       {/* NAV */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-teal-50 px-6 py-4 pb-8 flex justify-between items-center z-[800] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
          <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center ${activeTab === 'home' ? 'text-teal-600' : 'text-gray-300'}`}><Sun size={24}/><span className="text-[9px] font-black uppercase mt-1">Home</span></button>
-         <button onClick={() => setActiveTab('diet')} className={`flex flex-col items-center ${activeTab === 'diet' ? 'text-teal-600' : 'text-gray-300'}`}><Leaf size={24}/><span className="text-[9px] font-black uppercase mt-1">Diet</span></button>
+         
+         {/* DYNAMIC DIET TAB */}
+         {showDietModule && (
+            <button onClick={() => setActiveTab('diet')} className={`flex flex-col items-center ${activeTab === 'diet' ? 'text-teal-600' : 'text-gray-300'}`}><Leaf size={24}/><span className="text-[9px] font-black uppercase mt-1">Diet</span></button>
+         )}
+         
          <div className="relative -top-6"><button onClick={() => setActiveTab('chat')} className="w-16 h-16 bg-[#26A69A] rounded-full border-4 border-[#E0F2F1] shadow-xl flex items-center justify-center text-white active:scale-95 transition-all"><MessageCircle size={32}/></button></div>
          <button onClick={() => setActiveTab('vault')} className={`flex flex-col items-center ${activeTab === 'vault' ? 'text-teal-600' : 'text-gray-300'}`}><FolderOpen size={24}/><span className="text-[9px] font-black uppercase mt-1">Vault</span></button>
          <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-teal-600' : 'text-gray-300'}`}><Settings size={24}/><span className="text-[9px] font-black uppercase mt-1">Admin</span></button>
