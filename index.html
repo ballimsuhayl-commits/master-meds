@@ -9,98 +9,17 @@ import {
   MessageCircle, Send, Download, BarChart3, Trophy, Lock, Key,
   Leaf, Apple, Utensils, Zap, BedDouble, Clock, Mic, FolderOpen,
   Share2, FileJson, AlertTriangle, Coffee, Sunrise, Sunset, ToggleLeft, ToggleRight,
-  Phone, Eye, CloudRain, Wind, ThermometerSun
+  Phone, Eye, CloudRain, Wind, ThermometerSun, Mail
 } from 'lucide-react';
 
 /**
- * MASTER MEDS PRO - V7.1 (INJECTION PROTOCOL)
- * - Feature: Specific tracking for Humira (14-Day) and MTX (Weekly)
- * - UI: Enhanced Injection Card with checklist
+ * MASTER MEDS PRO - V7.3 (WHATSAPP REWIRE)
+ * - Feature: Pharmacy Settings (Number/Email)
+ * - Feature: Direct WhatsApp Refill Ordering
  */
 
 // --- ASSETS & CONSTANTS ---
-const BAKED_MASCOTS = {
-  neutral: (
-    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-      <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#26A69A" strokeWidth="3"/>
-      <circle cx="20" cy="25" r="12" fill="#212121"/>
-      <circle cx="80" cy="25" r="12" fill="#212121"/>
-      <circle cx="50" cy="55" r="35" fill="#FFFFFF"/>
-      <ellipse cx="35" cy="50" rx="10" ry="12" fill="#212121" transform="rotate(-15 35 50)"/>
-      <ellipse cx="65" cy="50" rx="10" ry="12" fill="#212121" transform="rotate(15 65 50)"/>
-      <circle cx="37" cy="48" r="3" fill="white"/>
-      <circle cx="63" cy="48" r="3" fill="white"/>
-      <ellipse cx="50" cy="62" rx="5" ry="3" fill="#212121"/>
-      <path d="M45 68 Q50 75 55 68" stroke="#212121" strokeWidth="2" fill="none" strokeLinecap="round"/>
-      <circle cx="80" cy="70" r="10" fill="#FFFFFF" stroke="#212121" strokeWidth="2"/>
-      <path d="M75 70 Q80 65 85 70" stroke="#212121" strokeWidth="2" fill="none"/>
-    </svg>
-  ),
-  shout: (
-    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-       <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#EF4444" strokeWidth="4"/>
-       <circle cx="20" cy="25" r="12" fill="#212121"/>
-       <circle cx="80" cy="25" r="12" fill="#212121"/>
-       <ellipse cx="35" cy="50" rx="11" ry="13" fill="#212121" transform="rotate(-15 35 50)"/>
-       <ellipse cx="65" cy="50" rx="11" ry="13" fill="#212121" transform="rotate(15 65 50)"/>
-       <circle cx="37" cy="48" r="2" fill="white"/>
-       <circle cx="63" cy="48" r="2" fill="white"/>
-       <ellipse cx="50" cy="60" rx="5" ry="3" fill="#212121"/>
-       <path d="M40 70 Q50 85 60 70 Z" fill="#EF4444" stroke="#212121" strokeWidth="1"/>
-       <path d="M15 70 L35 60 L35 80 Z" fill="#FFC107" stroke="#F59E0B" strokeWidth="2"/>
-       <rect x="5" y="65" width="10" height="10" rx="2" fill="#333"/>
-    </svg>
-  ),
-  checkup: (
-    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-       <circle cx="50" cy="50" r="45" fill="#FFFFFF" stroke="#26A69A" strokeWidth="3"/>
-       <circle cx="20" cy="25" r="12" fill="#212121"/>
-       <circle cx="80" cy="25" r="12" fill="#212121"/>
-       <path d="M30 85 Q30 65 50 65 Q70 65 70 85" fill="none" stroke="#EF4444" strokeWidth="3" strokeLinecap="round"/>
-       <circle cx="50" cy="85" r="5" fill="#FFC107"/>
-       <ellipse cx="35" cy="50" rx="9" ry="11" fill="#212121" transform="rotate(-15 35 50)"/>
-       <ellipse cx="65" cy="50" rx="9" ry="11" fill="#212121" transform="rotate(15 65 50)"/>
-       <circle cx="37" cy="48" r="3" fill="white"/>
-       <circle cx="63" cy="48" r="3" fill="white"/>
-       <ellipse cx="50" cy="58" rx="5" ry="3" fill="#212121"/>
-       <rect x="65" y="60" width="25" height="30" fill="#90CAF9" rx="2" stroke="#1E88E5" strokeWidth="2"/>
-       <rect x="70" y="58" width="15" height="5" fill="#333" rx="1"/>
-       <line x1="70" y1="70" x2="85" y2="70" stroke="white" strokeWidth="2"/>
-       <line x1="70" y1="78" x2="85" y2="78" stroke="white" strokeWidth="2"/>
-    </svg>
-  ),
-  water: (
-    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-       <circle cx="50" cy="50" r="45" fill="#E0F7FA" stroke="#00BCD4" strokeWidth="3"/>
-       <circle cx="20" cy="25" r="12" fill="#212121"/>
-       <circle cx="80" cy="25" r="12" fill="#212121"/>
-       <ellipse cx="35" cy="50" rx="10" ry="12" fill="#212121" transform="rotate(-15 35 50)"/>
-       <ellipse cx="65" cy="50" rx="10" ry="12" fill="#212121" transform="rotate(15 65 50)"/>
-       <circle cx="37" cy="48" r="3" fill="white"/>
-       <circle cx="63" cy="48" r="3" fill="white"/>
-       <ellipse cx="50" cy="62" rx="5" ry="3" fill="#212121"/>
-       <path d="M45 68 Q50 72 55 68" stroke="#212121" strokeWidth="2" fill="none" strokeLinecap="round"/>
-       <path d="M65 65 L70 90 L85 90 L90 65 Z" fill="#4FC3F7" stroke="#0288D1" strokeWidth="2" opacity="0.8"/>
-       <path d="M70 70 Q77 75 85 70" stroke="white" strokeWidth="2" fill="none" opacity="0.5"/>
-       <path d="M20 50 Q20 40 25 45 Q30 50 20 60 Q10 50 15 45 Q20 40 20 50" fill="#03A9F4"/>
-    </svg>
-  ),
-  syringe: (
-    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-md">
-       <circle cx="50" cy="50" r="45" fill="#F1F8E9" stroke="#8BC34A" strokeWidth="3"/>
-       <circle cx="20" cy="25" r="12" fill="#212121"/>
-       <circle cx="80" cy="25" r="12" fill="#212121"/>
-       <ellipse cx="35" cy="50" rx="10" ry="8" fill="#212121"/>
-       <ellipse cx="65" cy="50" rx="10" ry="8" fill="#212121"/>
-       <path d="M30 40 L40 42" stroke="#212121" strokeWidth="2"/>
-       <path d="M60 42 L70 40" stroke="#212121" strokeWidth="2"/>
-       <ellipse cx="50" cy="60" rx="5" ry="3" fill="#212121"/>
-       <rect x="75" y="40" width="10" height="40" fill="#C8E6C9" stroke="#388E3C" strokeWidth="2" transform="rotate(30 75 40)"/>
-       <line x1="75" y1="40" x2="70" y2="30" stroke="#9E9E9E" strokeWidth="2" transform="rotate(30 75 40)"/>
-       <rect x="72" y="80" width="16" height="4" fill="#388E3C" transform="rotate(30 75 40)"/>
-    </svg>
-  )
-};
+// Mascots removed for professional clinical look
 
 const VIVID_THEME = {
   mint: "bg-[#E0F2F1] border-[#B2DFDB] text-[#004D40]",
@@ -128,31 +47,12 @@ const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // --- COMPONENTS ---
 
-const PandaMascot = ({ size = "w-24 h-24", pose = "neutral", shout = false }) => {
-  return (
-    <div className={`relative ${size} flex items-center justify-center overflow-visible`}>
-      <div className={`w-full h-full ${shout ? 'animate-shout-lean' : 'animate-float'}`}>
-        {BAKED_MASCOTS[pose]}
-      </div>
-      {shout && (
-        <div className="absolute -top-24 left-1/2 -translate-x-1/2 z-[999] w-48 flex flex-col items-center animate-bounce-gentle">
-          <div className="bg-white border-4 border-black px-4 py-3 rounded-2xl shadow-[4px_4px_0px_rgba(0,0,0,1)] text-center relative">
-             <span className="font-black text-xl text-black uppercase leading-none block">TAKE YOUR<br/>MEDS!</span>
-             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[12px] border-t-black"></div>
-             <div className="absolute -bottom-[6px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-white"></div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const DashboardCard = ({ children, colorClass, title, icon: Icon, mascotPose, badge, mascotShout }) => (
+const DashboardCard = ({ children, colorClass, title, icon: Icon, badge }) => (
   <div className={`p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] border-2 border-black/10 shadow-[8px_8px_0px_rgba(0,0,0,0.05)] ${colorClass} mb-8 overflow-visible`}>
     <div className="flex justify-between items-center mb-6 overflow-visible">
       <div className="flex items-center gap-4 w-full">
         <div className="w-20 h-20 p-3 rounded-[1.5rem] bg-white shadow-md flex items-center justify-center overflow-visible shrink-0">
-          {mascotPose ? <PandaMascot size="w-full h-full" pose={mascotPose} shout={mascotShout} /> : (Icon && <Icon size={36} className="text-black" />)}
+          {Icon && <Icon size={36} className="text-black" />}
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="font-black text-xl md:text-3xl uppercase tracking-tight leading-tight truncate">{String(title || "")}</h3>
@@ -171,6 +71,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [loading, setLoading] = useState(false);
   const [apiKeys, setApiKeys] = useState({ gemini: '' });
+  const [pharmacy, setPharmacy] = useState({ name: '', phone: '', email: '' });
   const [now, setNow] = useState(new Date());
   
   const fileInputRef = useRef(null);
@@ -213,7 +114,7 @@ export default function App() {
   const [selectedInjectionSite, setSelectedInjectionSite] = useState(null);
 
   // Chat
-  const [chatHistory, setChatHistory] = useState([{ role: 'model', text: "Hello! I'm Dr. Panda. I can track your meds, analyze your diet, and help with interactions!" }]);
+  const [chatHistory, setChatHistory] = useState([{ role: 'model', text: "Hello! I'm your Medical Assistant. I can track your meds, analyze your diet, and help with interactions!" }]);
   const [chatInput, setChatInput] = useState("");
 
   // --- COMPUTED ---
@@ -233,7 +134,7 @@ export default function App() {
 
   // --- EFFECT: PERSISTENCE ---
   useEffect(() => {
-    const saved = localStorage.getItem('master_meds_v7_1');
+    const saved = localStorage.getItem('master_meds_v7_3');
     if (saved) {
       const data = JSON.parse(saved);
       if (data.meds) setMeds(data.meds);
@@ -241,6 +142,7 @@ export default function App() {
       if (data.vault) setVault(data.vault);
       if (data.diary) setDiary(data.diary);
       if (data.apiKeys) setApiKeys(data.apiKeys);
+      if (data.pharmacy) setPharmacy(data.pharmacy);
       if (data.humiraCycle) setHumiraCycle(data.humiraCycle);
       if (data.lastInjection) setLastInjection(data.lastInjection);
       if (data.contacts) setContacts(data.contacts);
@@ -251,10 +153,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('master_meds_v7_1', JSON.stringify({ 
-      meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, contacts, dietPlan 
+    localStorage.setItem('master_meds_v7_3', JSON.stringify({ 
+      meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, contacts, dietPlan, pharmacy
     }));
-  }, [meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, contacts, dietPlan]);
+  }, [meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, contacts, dietPlan, pharmacy]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -281,6 +183,16 @@ export default function App() {
       }
       return m;
     }));
+  };
+
+  const handleOrderRefill = (med) => {
+    if (!pharmacy.phone) {
+        setActiveTab('settings');
+        return setTimeout(() => alert("Please configure your Pharmacy WhatsApp number in the Admin tab."), 100);
+    }
+    const cleanPhone = pharmacy.phone.replace(/[^0-9]/g, '');
+    const text = `Hi ${pharmacy.name || 'Pharmacy'}, I would like to order a refill for:\n\n💊 *${med.n}* (${med.d})\n\nPlease let me know when it is ready.`;
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleVoiceInput = (setter) => {
@@ -323,7 +235,7 @@ export default function App() {
         const recentDiary = diary.slice(0, 10).map(d => `${d.time}: ${d.text} [${d.tags.join(',')}]`).join('\n');
         
         const prompt = `
-          Act as a Senior Rheumatologist (Doctor Agent). 
+          Act as a Senior Rheumatologist. 
           Analyze this patient data:
           Meds Taken Recently: ${medHistory}
           Recent Diary Entries:
@@ -391,14 +303,14 @@ export default function App() {
 
   const playVoiceBriefing = async () => {
     if (!apiKeys.gemini) return showMessage("API Key Missing", "Enter Key in Admin tab");
-    const text = safetyAnalysis?.summary || "Hello! Dr. Panda here. You are doing great on your medication adherence. Remember to drink water!";
+    const text = safetyAnalysis?.summary || "Hello! You are doing great on your medication adherence. Remember to drink water!";
     setLoading(true);
     try {
       const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKeys.gemini}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-           contents: [{ parts: [{ text: `Dr Panda says: ${text}` }] }],
+           contents: [{ parts: [{ text: `Doctor says: ${text}` }] }],
            generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } } }
         })
       });
@@ -474,11 +386,11 @@ export default function App() {
       <header className="pt-8 pb-6 px-6 bg-white border-b-8 border-teal-50 sticky top-0 z-[100] flex justify-between items-center shadow-sm">
          <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white border-4 border-teal-100 p-1 flex items-center justify-center">
-               <PandaMascot size="w-full h-full" pose="neutral" />
+               <HeartPulse size={40} className="text-teal-600" />
             </div>
             <div>
                <h1 className="text-3xl font-black text-[#212121] leading-none tracking-tighter">MASTER<br/><span className="text-teal-600">MEDS PRO</span></h1>
-               <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v7.1 Protocol</p>
+               <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v7.3 WhatsApp</p>
             </div>
          </div>
          <div className="flex flex-col items-end">
@@ -495,7 +407,7 @@ export default function App() {
       {/* LOADER */}
       {loading && (
         <div className="fixed inset-0 bg-white/90 backdrop-blur-xl z-[999] flex flex-col items-center justify-center">
-            <PandaMascot size="w-32 h-32" pose="shout" shout={true}/>
+            <div className="mb-4"><Loader2 size={64} className="text-teal-600 animate-spin" /></div>
             <p className="font-black text-xl uppercase tracking-widest text-teal-600 animate-pulse mt-4">Consulting AI...</p>
         </div>
       )}
@@ -541,7 +453,7 @@ export default function App() {
          <div className="fixed inset-0 z-[900] flex items-center justify-center p-6 bg-teal-900/90 backdrop-blur-sm">
             <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl text-center">
                <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <PandaMascot size="w-16 h-16" pose="syringe" />
+                  <Syringe size={48} className="text-teal-600" />
                </div>
                <h2 className="text-2xl font-black uppercase mb-2 text-teal-900">Nurse Prep: {selectedInjectionSite}</h2>
                <p className="text-gray-500 font-bold text-sm mb-6">Follow these steps for a safe injection.</p>
@@ -611,9 +523,14 @@ export default function App() {
                                 <h4 className="font-black text-lg text-teal-900">{med.n}</h4>
                                 <p className="text-xs font-bold text-teal-500 uppercase">{med.time}</p>
                              </div>
-                             <button onClick={() => handleMedToggle(med.id, 'take')} className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all ${med.status === 'pending' ? 'bg-teal-500 text-white' : 'bg-gray-300 text-gray-500'}`}>
-                                <Check size={24} />
-                             </button>
+                             <div className="flex gap-2">
+                                <button onClick={() => handleOrderRefill(med)} className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md bg-blue-100 text-blue-600 border border-blue-200">
+                                   <ShoppingCart size={20} />
+                                </button>
+                                <button onClick={() => handleMedToggle(med.id, 'take')} className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all ${med.status === 'pending' ? 'bg-teal-500 text-white' : 'bg-gray-300 text-gray-500'}`}>
+                                   <Check size={24} />
+                                </button>
+                             </div>
                           </div>
                         ))}
                      </div>
@@ -635,12 +552,15 @@ export default function App() {
                               <p className="text-xs font-bold text-gray-400 uppercase">{med.d} • {med.time} • Stock: {med.count}</p>
                            </div>
                            <div className="flex gap-2">
+                              {/* REFILL BUTTON */}
+                              <button onClick={() => handleOrderRefill(med)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-sm border border-blue-200"><ShoppingCart size={18}/></button>
+                              
                               {med.status === 'pending' ? (
                                  <>
                                     <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center shadow-md"><Check size={20}/></button>
                                     <button onClick={() => handleMedToggle(med.id, 'skip')} className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-md"><X size={20}/></button>
                                  </>
-                              ) : <span className="text-xs font-black uppercase text-gray-400 px-2">{med.status}</span>}
+                              ) : <span className="text-xs font-black uppercase text-gray-400 px-2 flex items-center">{med.status}</span>}
                            </div>
                         </div>
                      ))}
@@ -657,21 +577,24 @@ export default function App() {
                               <p className="text-xs font-bold text-gray-400 uppercase">{med.d} • {med.time} • Stock: {med.count}</p>
                            </div>
                            <div className="flex gap-2">
+                              {/* REFILL BUTTON */}
+                              <button onClick={() => handleOrderRefill(med)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-sm border border-blue-200"><ShoppingCart size={18}/></button>
+
                               {med.status === 'pending' ? (
                                  <>
                                     <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center shadow-md"><Check size={20}/></button>
                                     <button onClick={() => handleMedToggle(med.id, 'skip')} className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-md"><X size={20}/></button>
                                  </>
-                              ) : <span className="text-xs font-black uppercase text-gray-400 px-2">{med.status}</span>}
+                              ) : <span className="text-xs font-black uppercase text-gray-400 px-2 flex items-center">{med.status}</span>}
                            </div>
                         </div>
                      ))}
                   </DashboardCard>
                )}
 
-               {/* INJECTION QUADRANTS - WITH NURSE AGENT */}
+               {/* INJECTION QUADRANTS */}
                {cycleMeds.length > 0 && (
-                  <DashboardCard colorClass={VIVID_THEME.teal} title="Injection Site" mascotPose="syringe">
+                  <DashboardCard colorClass={VIVID_THEME.teal} title="Injection Site" icon={Syringe}>
                      <div className="grid grid-cols-2 gap-4 mb-4">
                         {QUADRANTS.map(q => (
                            <button key={q} onClick={() => startInjectionPrep(q)} className={`p-4 rounded-[1.5rem] font-black text-xl transition-all ${lastInjection.site === q ? 'bg-white text-teal-900 border-4 border-teal-100 shadow-md' : 'bg-teal-900/20 text-teal-100/50'}`}>{q}</button>
@@ -747,7 +670,7 @@ export default function App() {
 
          {/* --- STATS TAB (REBRANDED TO CLINICAL) --- */}
          {activeTab === 'stats' && (
-            <DashboardCard colorClass={VIVID_THEME.blue} title="Clinical Report" mascotPose="checkup">
+            <DashboardCard colorClass={VIVID_THEME.blue} title="Clinical Report" icon={Stethoscope}>
                <div className="bg-white/50 p-6 rounded-[2rem] mb-6">
                   <p className="text-sm font-bold text-blue-900 whitespace-pre-wrap">{safetyAnalysis ? safetyAnalysis.summary : "Tap 'Clinical Analysis' to have the Doctor Agent find symptom triggers."}</p>
                </div>
@@ -781,8 +704,8 @@ export default function App() {
                   >
                     <Mic size={20}/>
                   </button>
-                  <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask Dr. Panda..." className="flex-1 p-3 bg-transparent font-bold outline-none"/>
-                  <button onClick={() => { if(!chatInput) return; setChatHistory(prev => [...prev, {role:'user', text:chatInput}]); setChatInput(''); setTimeout(() => setChatHistory(prev => [...prev, {role:'model', text:"I'm Dr. Panda! I see you took your morning meds. Keep it up!"}]), 1000); }} className="p-3 bg-teal-600 text-white rounded-full"><Send size={20}/></button>
+                  <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask Medical Assistant..." className="flex-1 p-3 bg-transparent font-bold outline-none"/>
+                  <button onClick={() => { if(!chatInput) return; setChatHistory(prev => [...prev, {role:'user', text:chatInput}]); setChatInput(''); setTimeout(() => setChatHistory(prev => [...prev, {role:'model', text:"I'm your Medical Assistant. I see you took your morning meds. Keep it up!"}]), 1000); }} className="p-3 bg-teal-600 text-white rounded-full"><Send size={20}/></button>
                </div>
             </div>
          )}
@@ -812,6 +735,22 @@ export default function App() {
                <DashboardCard colorClass={VIVID_THEME.black} title="System" icon={Lock}>
                   <label className="text-xs font-black text-gray-500 uppercase ml-2">Gemini API Key</label>
                   <input type="password" value={apiKeys.gemini} onChange={(e) => setApiKeys({...apiKeys, gemini: e.target.value})} className="w-full p-4 bg-[#333] rounded-2xl text-white font-mono text-xs mt-2 border border-[#444] mb-4" placeholder="sk-..."/>
+
+                  {/* PHARMACY CONFIGURATION */}
+                  <div className="mb-6 border-t border-[#444] pt-4">
+                     <h3 className="text-white font-black uppercase text-sm mb-3 flex items-center gap-2"><ShoppingCart size={16}/> Pharmacy Config</h3>
+                     <div className="space-y-2">
+                        <input value={pharmacy.name} onChange={(e) => setPharmacy({...pharmacy, name: e.target.value})} placeholder="Pharmacy Name" className="w-full p-3 bg-[#444] rounded-xl text-white text-xs border border-[#555]" />
+                        <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
+                           <MessageCircle size={14} className="text-green-400"/>
+                           <input value={pharmacy.phone} onChange={(e) => setPharmacy({...pharmacy, phone: e.target.value})} placeholder="WhatsApp Number (e.g. 15550101)" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
+                        </div>
+                        <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
+                           <Mail size={14} className="text-blue-400"/>
+                           <input value={pharmacy.email} onChange={(e) => setPharmacy({...pharmacy, email: e.target.value})} placeholder="Pharmacy Email (Optional)" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
+                        </div>
+                     </div>
+                  </div>
                   
                   <div className="flex items-center justify-between p-4 bg-[#333] rounded-2xl mb-4">
                      <span className="text-white font-bold text-sm">Clinical Nutrition</span>
