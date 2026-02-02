@@ -1,834 +1,492 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { 
-  Activity, Droplets, Syringe, Plus, X, Sparkles, 
-  FileText, Pill, AlertCircle, ShoppingCart, 
-  Moon, Sun, RotateCcw, Camera, Volume2, 
-  Loader2, UserPlus, Settings, ShieldCheck, 
-  Smile, Megaphone, ChevronDown, Check,
-  CalendarDays, HeartPulse, Stethoscope, Thermometer,
-  MessageCircle, Send, Download, BarChart3, Trophy, Lock, Key,
-  Leaf, Apple, Utensils, Zap, BedDouble, Clock, Mic, FolderOpen,
-  Share2, FileJson, AlertTriangle, Coffee, Sunrise, Sunset, ToggleLeft, ToggleRight,
-  Phone, Eye, CloudRain, Wind, ThermometerSun, Mail, Save
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Meds Pro</title>
+    <!-- React & ReactDOM CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel CDN for in-browser transpilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide React CDN - Requires window.react = window.React -->
+    <script>window.react = window.React;</script>
+    <script src="https://unpkg.com/lucide-react@0.344.0/dist/umd/lucide-react.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #f8fafc; }
+        #root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        const {
+          Activity, Droplets, Syringe, Plus, X, Sparkles,
+          FileText, Pill, AlertCircle, ShoppingCart,
+          Moon, Sun, RotateCcw, Camera, Volume2,
+          Loader2, UserPlus, Settings, ShieldCheck,
+          Smile, Megaphone, ChevronDown, Check,
+          CalendarDays, HeartPulse, Stethoscope, Thermometer,
+          MessageCircle, Send, Download, BarChart3, Trophy, Lock, Key,
+          Leaf, Apple, Utensils, Zap, BedDouble, Clock, Mic, FolderOpen,
+          Mail, Phone, AlertTriangle, ToggleLeft, ToggleRight,
+          TrendingUp, TrendingDown, ClipboardCheck, Salad, Save
+        } = LucideReact;
 
-/**
- * MASTER MEDS PRO - V7.4 (FULL REWIRE)
- * - Feature: Dynamic Diet Tab (Toggleable)
- * - Feature: Editable Emergency Contact
- * - Feature: WhatsApp Clinical Sharing
- * - Feature: JSON Data Backup
- */
-
-// --- ASSETS & CONSTANTS ---
-const VIVID_THEME = {
-  mint: "bg-[#E0F2F1] border-[#B2DFDB] text-[#004D40]",
-  teal: "bg-[#26A69A] border-[#00695C] text-[#FFFFFF]",
-  panda: "bg-[#FFFFFF] border-[#E0E0E0] text-[#212121]",
-  yellow: "bg-[#FFF9C4] border-[#FFF176] text-[#F57F17]",
-  blue: "bg-[#E1F5FE] border-[#B3E5FC] text-[#01579B]",
-  red: "bg-[#FFEBEE] border-[#FFCDD2] text-[#B71C1C]",
-  black: "bg-[#000000] border-[#333333] text-[#FFFFFF]",
-  green: "bg-[#E8F5E9] border-[#A5D6A7] text-[#1B5E20]",
-  purple: "bg-[#F3E5F5] border-[#E1BEE7] text-[#4A148C]"
-};
-
-const LIFESTYLE_TAGS = [
-  { label: "Healthy Food", icon: Apple, color: "bg-green-100 text-green-700" },
-  { label: "Fast Food", icon: Utensils, color: "bg-orange-100 text-orange-700" },
-  { label: "High Sugar", icon: Sparkles, color: "bg-pink-100 text-pink-700" },
-  { label: "Exercise", icon: Zap, color: "bg-blue-100 text-blue-700" },
-  { label: "Good Sleep", icon: BedDouble, color: "bg-indigo-100 text-indigo-700" },
-  { label: "Stress", icon: Activity, color: "bg-red-100 text-red-700" }
-];
-
-const QUADRANTS = ['UL', 'UR', 'LL', 'LR'];
-const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-// --- COMPONENTS ---
-
-const DashboardCard = ({ children, colorClass, title, icon: Icon, badge }) => (
-  <div className={`p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] border-2 border-black/10 shadow-[8px_8px_0px_rgba(0,0,0,0.05)] ${colorClass} mb-8 overflow-visible`}>
-    <div className="flex justify-between items-center mb-6 overflow-visible">
-      <div className="flex items-center gap-4 w-full">
-        <div className="w-20 h-20 p-3 rounded-[1.5rem] bg-white shadow-md flex items-center justify-center overflow-visible shrink-0">
-          {Icon && <Icon size={36} className="text-black" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="font-black text-xl md:text-3xl uppercase tracking-tight leading-tight truncate">{String(title || "")}</h3>
-          {badge && <span className="text-xs font-black px-3 py-1 bg-[#212121] text-white rounded-full mt-2 inline-block animate-pulse-soft">{String(badge || "")}</span>}
-        </div>
-      </div>
-    </div>
-    {children}
-  </div>
-);
-
-// --- MAIN APP ---
-
-export default function App() {
-  // --- STATE ---
-  const [activeTab, setActiveTab] = useState('home');
-  const [loading, setLoading] = useState(false);
-  const [apiKeys, setApiKeys] = useState({ gemini: '' });
-  const [pharmacy, setPharmacy] = useState({ name: '', phone: '', email: '' });
-  const [emergencyContact, setEmergencyContact] = useState('');
-  const [now, setNow] = useState(new Date());
-  
-  const fileInputRef = useRef(null);
-  const chatEndRef = useRef(null);
-
-  // Voice State
-  const [isListening, setIsListening] = useState(false);
-
-  // V5.0 Unified State
-  const [stats, setStats] = useState({ streak: 12, level: 3, xp: 2450, wellness: 88 });
-  
-  // Meds (Updated: Humira 14-Days, MTX Weekly)
-  const [meds, setMeds] = useState([
-    { id: 1, n: "Cozaar", d: "100mg", block: 'am', status: 'pending', time: '08:00', schedule: DAYS_OF_WEEK, count: 12 },
-    { id: 2, n: "Vitamin D", d: "1000IU", block: 'am', status: 'pending', time: '09:00', schedule: DAYS_OF_WEEK, count: 28 },
-    { id: 3, n: "Lyrica", d: "100mg", block: 'pm', status: 'pending', time: '20:00', schedule: DAYS_OF_WEEK, count: 5 },
-    { id: 4, n: "Magnesium", d: "500mg", block: 'pm', status: 'pending', time: '21:00', schedule: DAYS_OF_WEEK, count: 15 },
-    // Critical Biologics
-    { id: 5, n: "Humira", d: "40mg", block: 'cycle', status: 'pending', time: 'Every 14 Days', schedule: ['Fri'], count: 2 },
-    { id: 6, n: "Methotrexate", d: "Injection", block: 'cycle', status: 'pending', time: 'Weekly', schedule: ['Sat'], count: 4 }
-  ]);
-
-  const [vault, setVault] = useState([]);
-  const [diary, setDiary] = useState([]); // {id, text, time, type, tags}
-  const [diaryInput, setDiaryInput] = useState("");
-  const [selectedTags, setSelectedTags] = useState([]);
-  
-  // Logic States
-  const [lastInjection, setLastInjection] = useState({ site: 'LL', date: new Date().toISOString() });
-  const [humiraCycle, setHumiraCycle] = useState({ anchorDate: "2026-01-23", cycleDays: 14 });
-
-  // Engines
-  const [safetyAnalysis, setSafetyAnalysis] = useState(null);
-  const [showSafetyModal, setShowSafetyModal] = useState(false);
-  const [dietPlan, setDietPlan] = useState(null);
-  const [showDietModule, setShowDietModule] = useState(true);
-  const [flareForecast, setFlareForecast] = useState(null);
-  const [showInjectionPrep, setShowInjectionPrep] = useState(false);
-  const [selectedInjectionSite, setSelectedInjectionSite] = useState(null);
-
-  // Chat
-  const [chatHistory, setChatHistory] = useState([{ role: 'model', text: "Hello! I'm your Medical Assistant. I can track your meds, analyze your diet, and help with interactions!" }]);
-  const [chatInput, setChatInput] = useState("");
-
-  // --- COMPUTED ---
-  const morningMeds = useMemo(() => meds.filter(m => m.block === 'am'), [meds]);
-  const eveningMeds = useMemo(() => meds.filter(m => m.block === 'pm'), [meds]);
-  const cycleMeds = useMemo(() => meds.filter(m => m.block === 'cycle'), [meds]);
-  
-  const remainingHumiraDays = useMemo(() => {
-    const anchor = new Date(humiraCycle.anchorDate);
-    const diffTime = Math.abs(now - anchor);
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return humiraCycle.cycleDays - (diffDays % humiraCycle.cycleDays);
-  }, [humiraCycle, now]);
-
-  const hasPending = meds.some(m => m.status === 'pending');
-  const shouldShout = hasPending && (now.getHours() < 12 || now.getHours() > 18);
-
-  // --- EFFECT: PERSISTENCE ---
-  useEffect(() => {
-    const saved = localStorage.getItem('master_meds_v7_4');
-    if (saved) {
-      const data = JSON.parse(saved);
-      if (data.meds) setMeds(data.meds);
-      if (data.stats) setStats(data.stats);
-      if (data.vault) setVault(data.vault);
-      if (data.diary) setDiary(data.diary);
-      if (data.apiKeys) setApiKeys(data.apiKeys);
-      if (data.pharmacy) setPharmacy(data.pharmacy);
-      if (data.humiraCycle) setHumiraCycle(data.humiraCycle);
-      if (data.lastInjection) setLastInjection(data.lastInjection);
-      if (data.emergencyContact) setEmergencyContact(data.emergencyContact);
-      if (data.dietPlan) setDietPlan(data.dietPlan);
-      // Ensure showDietModule is boolean
-      if (typeof data.showDietModule === 'boolean') setShowDietModule(data.showDietModule);
-    }
-    const ticker = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(ticker);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('master_meds_v7_4', JSON.stringify({ 
-      meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergencyContact, dietPlan, pharmacy, showDietModule
-    }));
-  }, [meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergencyContact, dietPlan, pharmacy, showDietModule]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, activeTab]);
-
-  // --- HELPERS ---
-  const updateXP = (amount) => {
-    setStats(prev => {
-      const newXP = prev.xp + amount;
-      return { ...prev, xp: newXP, level: Math.floor(newXP / 1000) + 1, wellness: Math.min(100, prev.wellness + 5) };
-    });
-  };
-
-  const showMessage = (title, text) => alert(`${title}\n\n${text}`); 
-
-  const handleMedToggle = (id, action) => {
-    setMeds(prev => prev.map(m => {
-      if (m.id === id) {
-        if (action === 'take' && m.status !== 'taken') {
-          updateXP(50);
-          return { ...m, status: 'taken', count: Math.max(0, m.count - 1) };
-        }
-        return { ...m, status: action === 'take' ? 'taken' : 'skipped' };
-      }
-      return m;
-    }));
-  };
-
-  const handleOrderRefill = (med) => {
-    if (!pharmacy.phone) {
-        setActiveTab('settings');
-        return setTimeout(() => alert("Please configure your Pharmacy WhatsApp number in the Admin tab."), 100);
-    }
-    const cleanPhone = pharmacy.phone.replace(/[^0-9]/g, '');
-    const text = `Hi ${pharmacy.name || 'Pharmacy'}, I would like to order a refill for:\n\n💊 *${med.n}* (${med.d})\n\nPlease let me know when it is ready.`;
-    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
-  };
-
-  const handleShareReport = () => {
-    const text = `*MY CLINICAL REPORT*\n\n*Wellness Score:* ${stats.wellness}%\n*Adherence Level:* ${stats.level}\n\n*Latest Analysis:*\n${safetyAnalysis?.summary || "No recent analysis."}\n\n*Current Flare Risk:* ${flareForecast?.risk || "Unknown"}`;
-    if(navigator.share) {
-       navigator.share({ title: 'My Health Report', text: text }).catch(console.error);
-    } else {
-       // Fallback to WhatsApp
-       window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    }
-  };
-
-  const handleExportData = () => {
-     const dataStr = JSON.stringify({ meds, stats, vault, diary, pharmacy }, null, 2);
-     const blob = new Blob([dataStr], { type: "application/json" });
-     const url = URL.createObjectURL(blob);
-     const link = document.createElement("a");
-     link.href = url;
-     link.download = `master_meds_backup_${new Date().toISOString().split('T')[0]}.json`;
-     document.body.appendChild(link);
-     link.click();
-     document.body.removeChild(link);
-  };
-
-  const handleVoiceInput = (setter) => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-       return showMessage("Not Supported", "Voice input is not supported in this browser.");
-    }
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-
-    recognition.onstart = () => setIsListening(true);
-    recognition.onend = () => setIsListening(false);
-    recognition.onresult = (event) => {
-       const transcript = event.results[0][0].transcript;
-       setter(prev => (prev ? prev + " " : "") + transcript);
-    };
-    recognition.onerror = (e) => {
-       setIsListening(false);
-       console.error("Speech error", e);
-    };
-    recognition.start();
-  };
-
-  // --- API LOGIC ---
-  const fetchWithRetry = async (url, options) => {
-    try {
-      const res = await fetch(url, options);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (e) { throw e; }
-  };
-
-  const runClinicalAnalysis = async () => {
-    if (!apiKeys.gemini) return showMessage("API Key Missing", "Enter Key in Admin tab");
-    setLoading(true);
-    try {
-        const medHistory = meds.filter(m => m.status === 'taken').map(m => m.n).join(', ');
-        const recentDiary = diary.slice(0, 10).map(d => `${d.time}: ${d.text} [${d.tags.join(',')}]`).join('\n');
-        
-        const prompt = `
-          Act as a Senior Rheumatologist. 
-          Analyze this patient data:
-          Meds Taken Recently: ${medHistory}
-          Recent Diary Entries:
-          ${recentDiary}
-
-          Task: Identify patterns and triggers. 
-          Return JSON: 
-          {
-            "interactions": [{"med1": "", "med2": "", "severity": "High/Moderate", "description": ""}], 
-            "correlations": ["Trigger 1 -> Symptom", "Trigger 2 -> Symptom"], 
-            "summary": "Clinical summary for the patient."
+        const safeJsonParse = (text) => {
+          try {
+            const cleaned = text.replace(/```json\n?|```/g, '').trim();
+            return JSON.parse(cleaned);
+          } catch (e) {
+            console.error("Failed to parse AI response:", text, e);
+            throw e;
           }
-        `;
-        
-        const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKeys.gemini}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
-        });
-        
-        const analysis = JSON.parse(data.candidates[0].content.parts[0].text);
-        setSafetyAnalysis(analysis);
-        setShowSafetyModal(true);
-        updateXP(100);
-    } catch (e) { showMessage("Error", "Clinical analysis failed."); } finally { setLoading(false); }
-  };
+        };
 
-  const generateFlareForecast = async () => {
-    if (!apiKeys.gemini || !selectedTags.length) return;
-    try {
-      const prompt = `
-        Act as a Health Helper. Current User Tags: ${selectedTags.join(', ')}.
-        Predict a "Flare Risk" (Low/Medium/High) and give 1 lifestyle tip.
-        Return JSON: { "risk": "Low", "tip": "Drink water." }
-      `;
-      const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKeys.gemini}`, {
-          method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
-      });
-      const result = JSON.parse(data.candidates[0].content.parts[0].text);
-      setFlareForecast(result);
-    } catch (e) { console.error(e); }
-  };
+        const VIVID_THEME = {
+          mint: 'bg-teal-50 border-teal-100 text-teal-600',
+          teal: 'bg-[#26A69A] text-white',
+          yellow: 'bg-amber-50 border-amber-100 text-amber-600',
+          purple: 'bg-indigo-50 border-indigo-100 text-indigo-600',
+          red: 'bg-rose-50 border-rose-100 text-rose-600',
+          orange: 'bg-orange-50 border-orange-100 text-orange-600',
+          black: 'bg-gray-900 text-white',
+          white: 'bg-white border-2 border-gray-100'
+        };
 
-  useEffect(() => {
-    if (selectedTags.length > 0) generateFlareForecast();
-  }, [selectedTags]);
-
-  const generateDietPlan = async () => {
-    if (!apiKeys.gemini) return showMessage("API Key Missing", "Enter Key in Admin tab");
-    setLoading(true);
-    try {
-        const medList = meds.map(m => m.n).join(', ');
-        const prompt = `Create a 1-day Clinical Meal Plan for meds: [${medList}]. Return JSON: {"preferredFoods": [], "meals": [{"type": "Breakfast/Lunch/Dinner", "name": "", "desc": ""}], "hydrationGoal": ""}`;
-        const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKeys.gemini}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
-        });
-        const plan = JSON.parse(data.candidates[0].content.parts[0].text);
-        setDietPlan(plan);
-        updateXP(50);
-    } catch (e) { showMessage("Error", "Meal plan failed."); } finally { setLoading(false); }
-  };
-
-  const playVoiceBriefing = async () => {
-    if (!apiKeys.gemini) return showMessage("API Key Missing", "Enter Key in Admin tab");
-    const text = safetyAnalysis?.summary || "Hello! You are doing great on your medication adherence. Remember to drink water!";
-    setLoading(true);
-    try {
-      const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKeys.gemini}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-           contents: [{ parts: [{ text: `Doctor says: ${text}` }] }],
-           generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } } }
-        })
-      });
-      const audioData = res.candidates[0].content.parts[0].inlineData.data;
-      const audio = new Audio(`data:audio/wav;base64,${audioData}`);
-      audio.play();
-    } catch (e) { console.error(e); showMessage("Error", "Voice synthesis failed."); } finally { setLoading(false); }
-  };
-
-  const handlePillScan = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !apiKeys.gemini) return;
-    setLoading(true);
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-       const base64 = reader.result.split(',')[1];
-       try {
-         const prompt = `Identify medication. Return JSON: { "name": "Name", "dosage": "Strength", "schedule": ["Mon", "Tue"...] }`;
-         const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKeys.gemini}`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/png", data: base64 } }] }], generationConfig: { responseMimeType: "application/json" } })
-         });
-         const result = JSON.parse(res.candidates[0].content.parts[0].text);
-         setVault(prev => [{ id: Date.now(), name: result.name, date: new Date().toLocaleDateString(), image: reader.result }, ...prev]);
-         setMeds(prev => [...prev, { id: Date.now(), n: result.name, d: result.dosage, block: 'am', status: 'pending', count: 30, schedule: result.schedule || DAYS_OF_WEEK }]);
-         updateXP(100);
-         alert(`Scanned ${result.name}. Added to Meds & Vault.`);
-       } catch (err) { alert("Scan failed"); } finally { setLoading(false); }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // 3. NURSE AGENT: INJECTION PREP
-  const startInjectionPrep = (site) => {
-    setSelectedInjectionSite(site);
-    setShowInjectionPrep(true);
-  };
-
-  const confirmInjection = () => {
-    if (!selectedInjectionSite) return;
-    setLastInjection({ site: selectedInjectionSite, date: new Date().toISOString() });
-    updateXP(75);
-    setDiary(prev => [{ id: Date.now(), text: `Injection at ${selectedInjectionSite} (Prep Completed)`, time: new Date().toLocaleTimeString(), tags: ['Injection', 'Nurse Verified'] }, ...prev]);
-    setShowInjectionPrep(false);
-    setSelectedInjectionSite(null);
-  };
-
-  const generateIcsFile = () => {
-      const eventDate = new Date(humiraCycle.anchorDate);
-      let events = "";
-      for (let i=0; i<5; i++) {
-          const d = new Date(eventDate);
-          d.setDate(d.getDate() + (i * humiraCycle.cycleDays));
-          const dateStr = d.toISOString().replace(/-|:|\.\d+/g, "").substring(0,8);
-          events += `BEGIN:VEVENT\nSUMMARY:Humira Injection\nDTSTART;VALUE=DATE:${dateStr}\nDESCRIPTION:Master Meds Pro\nEND:VEVENT\n`;
-      }
-      const blob = new Blob([`BEGIN:VCALENDAR\nVERSION:2.0\n${events}END:VCALENDAR`], { type: 'text/calendar' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'humira_schedule.ics';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F5F5F5] text-[#212121] font-sans pb-40">
-      
-      {/* SHOUT ALERT */}
-      {shouldShout && <div className="fixed inset-0 z-[50] pointer-events-none border-[12px] border-red-500/30 animate-pulse"></div>}
-
-      {/* HEADER */}
-      <header className="pt-8 pb-6 px-6 bg-white border-b-8 border-teal-50 sticky top-0 z-[100] flex justify-between items-center shadow-sm">
-         <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white border-4 border-teal-100 p-1 flex items-center justify-center">
-               <HeartPulse size={40} className="text-teal-600" />
+        function DashboardCard({ colorClass, title, icon: Icon, children, className="" }) {
+          return (
+            <div className={`p-6 rounded-[2.5rem] ${colorClass} ${className} shadow-sm border-2`}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-black uppercase text-xs tracking-widest opacity-80">{title}</h3>
+                {Icon && <Icon size={20} className="opacity-60"/>}
+              </div>
+              {children}
             </div>
-            <div>
-               <h1 className="text-3xl font-black text-[#212121] leading-none tracking-tighter">MASTER<br/><span className="text-teal-600">MEDS PRO</span></h1>
-               <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v7.4 Rewired</p>
-            </div>
-         </div>
-         <div className="flex flex-col items-end">
-            <div className="flex items-center gap-2 bg-teal-50 px-3 py-1 rounded-full border border-teal-100">
-               <Trophy size={14} className="text-yellow-500"/>
-               <span className="font-black text-teal-800 text-xs">LVL {stats.level}</span>
-            </div>
-            <div className="w-24 h-2 bg-gray-200 rounded-full mt-2 overflow-hidden">
-               <div className="h-full bg-teal-500 transition-all duration-1000" style={{ width: `${stats.wellness}%` }}></div>
-            </div>
-         </div>
-      </header>
+          );
+        }
 
-      {/* LOADER */}
-      {loading && (
-        <div className="fixed inset-0 bg-white/90 backdrop-blur-xl z-[999] flex flex-col items-center justify-center">
-            <div className="mb-4"><Loader2 size={64} className="text-teal-600 animate-spin" /></div>
-            <p className="font-black text-xl uppercase tracking-widest text-teal-600 animate-pulse mt-4">Consulting AI...</p>
-        </div>
-      )}
+        function App() {
+          const [activeTab, setActiveTab] = useState('home');
+          const [meds, setMeds] = useState([
+            { id: 1, name: 'Humira', dose: '40mg', time: '08:00 AM', status: 'taken', color: 'teal', type: 'injection' },
+            { id: 2, name: 'Methotrexate', dose: '15mg', time: '10:00 AM', status: 'pending', color: 'indigo', type: 'pill' }
+          ]);
+          const [apiKeys, setApiKeys] = useState({ gemini: '' });
+          const [isAnalyzing, setIsAnalyzing] = useState(false);
+          const [report, setReport] = useState(null);
+          const [flareForecast, setFlareForecast] = useState(null);
+          const [dietPlan, setDietPlan] = useState(null);
+          const [showDietModule, setShowDietModule] = useState(true);
+          const [chatInput, setChatInput] = useState('');
+          const [chatHistory, setChatHistory] = useState([]);
+          const [isListening, setIsListening] = useState(false);
+          const [vault, setVault] = useState([]);
+          const [pharmacy, setPharmacy] = useState({ name: '', phone: '', email: '' });
+          const [emergencyContact, setEmergencyContact] = useState('');
 
-      {/* MODAL: DOCTOR AGENT ANALYSIS */}
-      {showSafetyModal && safetyAnalysis && (
-         <div className="fixed inset-0 z-[900] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl overflow-y-auto max-h-[80vh]">
-               <h2 className="text-2xl font-black uppercase mb-4 flex items-center gap-2"><Stethoscope className="text-blue-500"/> Doctor's Analysis</h2>
-               
-               <div className="bg-blue-50 p-4 rounded-2xl mb-4 border border-blue-100 font-bold text-blue-900 text-sm">
-                  {safetyAnalysis.summary}
-               </div>
+          const fileInputRef = useRef(null);
+          const chatEndRef = useRef(null);
 
-               {/* Clinical Correlations */}
-               {safetyAnalysis.correlations && safetyAnalysis.correlations.length > 0 && (
-                 <div className="mb-4">
-                    <h3 className="text-xs font-black uppercase text-gray-400 mb-2">Triggers Found</h3>
-                    {safetyAnalysis.correlations.map((c, i) => (
-                      <div key={i} className="flex items-center gap-2 bg-orange-50 p-3 rounded-xl border border-orange-100 text-xs font-bold text-orange-800 mb-2">
-                         <Activity size={14}/> {c}
-                      </div>
-                    ))}
-                 </div>
-               )}
+          useEffect(() => {
+            const saved = localStorage.getItem('master_meds_data');
+            if(saved) {
+              const data = JSON.parse(saved);
+              if(data.meds) setMeds(data.meds);
+              if(data.apiKeys) setApiKeys(data.apiKeys);
+              if(data.vault) setVault(data.vault);
+              if(data.pharmacy) setPharmacy(data.pharmacy);
+              if(data.emergencyContact) setEmergencyContact(data.emergencyContact);
+            }
+          }, []);
 
-               <div className="space-y-2 mb-6">
-                  {safetyAnalysis.interactions.map((inter, i) => (
-                     <div key={i} className="bg-red-50 p-3 rounded-xl border border-red-100 text-xs">
-                        <strong className="block text-red-700 uppercase">{inter.med1} + {inter.med2}</strong>
-                        <span className="text-red-600">{inter.description}</span>
-                     </div>
-                  ))}
-               </div>
+          useEffect(() => {
+            localStorage.setItem('master_meds_data', JSON.stringify({ meds, apiKeys, vault, pharmacy, emergencyContact }));
+          }, [meds, apiKeys, vault, pharmacy, emergencyContact]);
 
-               <button onClick={() => setShowSafetyModal(false)} className="w-full py-4 bg-teal-600 text-white font-black rounded-2xl uppercase">Close Report</button>
-            </div>
-         </div>
-      )}
+          const fetchWithRetry = async (url, options, retries = 3) => {
+            for (let i = 0; i < retries; i++) {
+              try {
+                const response = await fetch(url, options);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+              } catch (e) {
+                if (i === retries - 1) throw e;
+                await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+              }
+            }
+          };
 
-      {/* MODAL: NURSE AGENT PREP */}
-      {showInjectionPrep && (
-         <div className="fixed inset-0 z-[900] flex items-center justify-center p-6 bg-teal-900/90 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl text-center">
-               <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Syringe size={48} className="text-teal-600" />
-               </div>
-               <h2 className="text-2xl font-black uppercase mb-2 text-teal-900">Nurse Prep: {selectedInjectionSite}</h2>
-               <p className="text-gray-500 font-bold text-sm mb-6">Follow these steps for a safe injection.</p>
+          const runClinicalAnalysis = async () => {
+            if(!apiKeys.gemini) return alert("Please enter Gemini API Key in Admin tab");
+            setIsAnalyzing(true);
+            try {
+              const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `Analyze these meds and symptoms: ${JSON.stringify(meds)}. Return JSON only: { "summary": "...", "score": 0-100, "warnings": [] }` }] }]
+                })
+              });
+              const analysis = safeJsonParse(data.candidates[0].content.parts[0].text);
+              setReport(analysis);
+            } catch (e) {
+              alert("Analysis failed: " + e.message);
+            } finally {
+              setIsAnalyzing(false);
+            }
+          };
 
-               <div className="space-y-3 text-left mb-8">
-                  <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 cursor-pointer">
-                     <input type="checkbox" className="w-6 h-6 accent-teal-600 rounded-md" />
-                     <span className="font-bold text-sm">Warm to room temp (15-30 min)</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 cursor-pointer">
-                     <input type="checkbox" className="w-6 h-6 accent-teal-600 rounded-md" />
-                     <span className="font-bold text-sm">Check liquid (Clear, colorless)</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 cursor-pointer">
-                     <input type="checkbox" className="w-6 h-6 accent-teal-600 rounded-md" />
-                     <span className="font-bold text-sm">Alcohol swab & Let dry</span>
-                  </label>
-               </div>
+          const generateFlareForecast = async () => {
+            if(!apiKeys.gemini) return;
+            try {
+              const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `Based on medication compliance, forecast flare-up risk. Return JSON only: { "risk": "Low/Med/High", "percentage": 0-100, "factor": "Reason" }` }] }]
+                })
+              });
+              const result = safeJsonParse(data.candidates[0].content.parts[0].text);
+              setFlareForecast(result);
+            } catch (e) { console.error(e); }
+          };
 
-               <div className="flex gap-4">
-                  <button onClick={() => setShowInjectionPrep(false)} className="flex-1 py-4 bg-gray-200 text-gray-600 font-black rounded-2xl uppercase">Cancel</button>
-                  <button onClick={confirmInjection} className="flex-1 py-4 bg-teal-600 text-white font-black rounded-2xl uppercase shadow-lg shadow-teal-200">Inject & Log</button>
-               </div>
-            </div>
-         </div>
-      )}
+          const generateDietPlan = async () => {
+            if(!apiKeys.gemini) return;
+            try {
+              const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: `Create an anti-inflammatory diet plan for today. Return JSON only: { "breakfast": "...", "lunch": "...", "dinner": "...", "snack": "..." }` }] }]
+                })
+              });
+              const plan = safeJsonParse(data.candidates[0].content.parts[0].text);
+              setDietPlan(plan);
+            } catch (e) { console.error(e); }
+          };
 
-      <main className="px-6 mt-8">
-         {/* --- HOME TAB --- */}
-         {activeTab === 'home' && (
-            <>
-               {/* HEALTH HELPER: FLARE FORECAST */}
-               {flareForecast && (
-                 <div className={`mb-8 p-6 rounded-[2.5rem] border-2 shadow-sm flex items-center gap-6 ${flareForecast.risk === 'High' ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'}`}>
-                    <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center shadow-sm text-2xl">
-                      {flareForecast.risk === 'High' ? '⛈️' : '🌤️'}
-                    </div>
-                    <div>
-                       <div className="flex items-center gap-2 mb-1">
-                          <h3 className="text-sm font-black uppercase tracking-widest opacity-50">Flare Forecast</h3>
-                       </div>
-                       <h2 className={`text-2xl font-black ${flareForecast.risk === 'High' ? 'text-red-700' : 'text-blue-700'}`}>{flareForecast.risk} Risk</h2>
-                       <p className="text-xs font-bold opacity-70 mt-1">{flareForecast.tip}</p>
-                    </div>
-                 </div>
-               )}
+          const playVoiceBriefing = async () => {
+            if(!apiKeys.gemini) return;
+            try {
+              const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  contents: [{ parts: [{ text: "Create a 30-second audio briefing summary of the patient status. Be encouraging." }] }]
+                })
+              });
+              const text = res.candidates[0].content.parts[0].text;
+              const utterance = new SpeechSynthesisUtterance(text);
+              window.speechSynthesis.speak(utterance);
+            } catch (e) { console.error(e); }
+          };
 
-               {/* CYCLE & INJECTION CARD */}
-               {cycleMeds.length > 0 && (
-                  <div className="mb-8 p-6 rounded-[2.5rem] bg-white border-2 border-teal-100 shadow-[8px_8px_0px_#e0f2f1]">
-                     <div className="flex justify-between items-center mb-4">
-                        <div className="flex items-center gap-3">
-                           <Syringe size={24} className="text-teal-600"/>
-                           <h3 className="font-black uppercase tracking-tight">Biologics & Injections</h3>
-                        </div>
-                        <span className="text-xs font-black text-teal-600">{remainingHumiraDays} DAYS TO HUMIRA</span>
-                     </div>
-                     <div className="h-4 w-full bg-teal-50 rounded-full border border-teal-100 overflow-hidden mb-6">
-                        <div className="h-full bg-teal-500 transition-all" style={{ width: `${((humiraCycle.cycleDays - remainingHumiraDays) / humiraCycle.cycleDays) * 100}%` }}></div>
-                     </div>
-                     
-                     {/* Injection Checklist */}
-                     <div className="space-y-3 mb-6">
-                        {cycleMeds.map(med => (
-                          <div key={med.id} className={`flex items-center justify-between p-4 rounded-[1.5rem] border-2 ${med.status === 'pending' ? 'bg-teal-50 border-teal-200' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
-                             <div>
-                                <h4 className="font-black text-lg text-teal-900">{med.n}</h4>
-                                <p className="text-xs font-bold text-teal-500 uppercase">{med.time}</p>
+          const handlePillScan = async (e) => {
+            const file = e.target.files[0];
+            if(!file || !apiKeys.gemini) return;
+
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+               const base64 = reader.result.split(',')[1];
+               try {
+                  const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                     method: 'POST',
+                     body: JSON.stringify({
+                        contents: [{ parts: [
+                           { inline_data: { mime_type: "image/jpeg", data: base64 } },
+                           { text: "Identify this medication bottle. Return JSON only: { \"name\": \"...\", \"dose\": \"...\", \"instructions\": \"...\" }" }
+                        ] }]
+                     })
+                  });
+                  const result = safeJsonParse(res.candidates[0].content.parts[0].text);
+                  setVault(prev => [{ id: Date.now(), ...result, image: reader.result, date: new Date().toLocaleDateString() }, ...prev]);
+               } catch (e) { alert("Scan failed"); }
+            };
+            reader.readAsDataURL(file);
+          };
+
+          const handleVoiceInput = (setter) => {
+             const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+             recognition.onstart = () => setIsListening(true);
+             recognition.onend = () => setIsListening(false);
+             recognition.onresult = (event) => {
+                setter(event.results[0][0].transcript);
+             };
+             recognition.start();
+          };
+
+          const handleExportData = () => {
+             const blob = new Blob([JSON.stringify({ meds, vault, pharmacy, emergencyContact }, null, 2)], { type: 'application/json' });
+             const url = URL.createObjectURL(blob);
+             const a = document.createElement('a');
+             a.href = url;
+             a.download = `master-meds-backup-${new Date().toISOString().split('T')[0]}.json`;
+             a.click();
+          };
+
+          const handleOrderRefill = () => {
+             if(!pharmacy.phone) return alert("Please set Pharmacy Phone in Admin tab first.");
+             const cleanPhone = pharmacy.phone.replace(/[^0-9]/g, '');
+             const text = `Hello ${pharmacy.name}, I would like to request a refill for my medications.`;
+             window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+          };
+
+          return (
+            <div className="max-w-md mx-auto bg-white min-h-screen pb-32 font-sans text-gray-900 overflow-x-hidden">
+              {/* HEADER */}
+              <header className="p-8 pt-12 flex justify-between items-center bg-white/80 backdrop-blur-md sticky top-0 z-[1000]">
+                <div>
+                   <h1 className="text-2xl font-black tracking-tighter text-teal-600 flex items-center gap-1">MASTER MEDS <span className="bg-teal-600 text-white px-2 py-0.5 rounded-lg text-[10px] uppercase tracking-widest">PRO</span></h1>
+                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Clinical Grade Rewired • v7.4</p>
+                </div>
+                <div className="flex gap-2">
+                   <button onClick={playVoiceBriefing} className="p-3 bg-teal-50 text-teal-600 rounded-2xl active:scale-90 transition-all shadow-sm border border-teal-100"><Volume2 size={20}/></button>
+                   <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-teal-600 rounded-2xl shadow-lg border-2 border-white flex items-center justify-center text-white font-black">JS</div>
+                </div>
+              </header>
+
+              <main className="px-6 space-y-8">
+                 {/* --- HOME TAB --- */}
+                 {activeTab === 'home' && (
+                    <>
+                       {/* STATUS BANNER */}
+                       <div className="relative overflow-hidden p-8 rounded-[3rem] bg-gray-900 text-white shadow-2xl border-4 border-gray-100">
+                          <div className="relative z-10">
+                             <div className="flex items-center gap-2 mb-2">
+                                <ShieldCheck size={16} className="text-teal-400"/>
+                                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">System Status: Active</span>
                              </div>
-                             <div className="flex gap-2">
-                                <button onClick={() => handleOrderRefill(med)} className="w-12 h-12 rounded-xl flex items-center justify-center shadow-md bg-blue-100 text-blue-600 border border-blue-200">
-                                   <ShoppingCart size={20} />
-                                </button>
-                                <button onClick={() => handleMedToggle(med.id, 'take')} className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-md transition-all ${med.status === 'pending' ? 'bg-teal-500 text-white' : 'bg-gray-300 text-gray-500'}`}>
-                                   <Check size={24} />
-                                </button>
+                             <h2 className="text-4xl font-black mb-4 tracking-tighter leading-none">ALL CLEAR FOR<br/><span className="text-teal-400">TODAY.</span></h2>
+                             <div className="flex items-center gap-4">
+                                <div className="flex -space-x-3">
+                                   {[1,2,3].map(i => <div key={i} className="w-8 h-8 rounded-full border-2 border-gray-900 bg-teal-600 flex items-center justify-center text-[10px] font-black">{i}</div>)}
+                                </div>
+                                <span className="text-xs font-bold opacity-60">3 Meds Synced</span>
                              </div>
                           </div>
-                        ))}
-                     </div>
+                          <Sparkles className="absolute -right-8 -bottom-8 text-teal-500/20" size={200}/>
+                       </div>
 
-                     <div className="flex justify-between">
-                        <button onClick={generateIcsFile} className="text-[10px] font-black bg-teal-50 text-teal-700 px-3 py-1 rounded-full flex items-center gap-1"><CalendarDays size={10}/> SYNC CAL</button>
-                        <button onClick={() => setHumiraCycle({...humiraCycle, anchorDate: new Date().toISOString().split('T')[0]})} className="text-[10px] font-black text-teal-300">RESET HUMIRA</button>
-                     </div>
-                  </div>
-               )}
+                       {/* MEDICATION LOG */}
+                       <DashboardCard colorClass={VIVID_THEME.white} title="Daily Schedule" icon={CalendarDays}>
+                          <div className="space-y-4">
+                             {meds.map(med => (
+                                <div key={med.id} className="flex items-center justify-between p-5 bg-gray-50 rounded-[2rem] border-2 border-transparent hover:border-teal-100 transition-all group">
+                                   <div className="flex items-center gap-4">
+                                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${med.type === 'injection' ? 'bg-rose-100 text-rose-600' : 'bg-teal-100 text-teal-600'}`}>
+                                         {med.type === 'injection' ? <Syringe size={24}/> : <Pill size={24}/>}
+                                      </div>
+                                      <div>
+                                         <h4 className="font-black text-sm">{med.name}</h4>
+                                         <p className="text-[11px] font-bold text-gray-400 uppercase">{med.dose} • {med.time}</p>
+                                      </div>
+                                   </div>
+                                   <button
+                                      onClick={() => setMeds(meds.map(m => m.id === med.id ? {...m, status: m.status === 'taken' ? 'pending' : 'taken'} : m))}
+                                      className={`p-4 rounded-2xl transition-all ${med.status === 'taken' ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' : 'bg-white border-2 border-gray-100 text-gray-300'}`}
+                                   >
+                                      {med.status === 'taken' ? <Check size={20} strokeWidth={3}/> : <Plus size={20} strokeWidth={3}/>}
+                                   </button>
+                                </div>
+                             ))}
+                          </div>
+                       </DashboardCard>
 
-               {/* MORNING */}
-               {morningMeds.length > 0 && (
-                  <DashboardCard colorClass={VIVID_THEME.yellow} title="Morning Meds" icon={Sun} badge={`${morningMeds.filter(m => m.status === 'pending').length} DUE`}>
-                     {morningMeds.map(med => (
-                        <div key={med.id} className={`flex items-center justify-between p-4 mb-3 rounded-[2rem] bg-white border-2 border-black/5 shadow-sm ${med.status !== 'pending' ? 'opacity-40' : ''}`}>
-                           <div className="flex-1">
-                              <h4 className="font-black text-lg">{med.n}</h4>
-                              <p className="text-xs font-bold text-gray-400 uppercase">{med.d} • {med.time} • Stock: {med.count}</p>
-                           </div>
-                           <div className="flex gap-2">
-                              {/* REFILL BUTTON */}
-                              <button onClick={() => handleOrderRefill(med)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-sm border border-blue-200"><ShoppingCart size={18}/></button>
-                              
-                              {med.status === 'pending' ? (
-                                 <>
-                                    <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center shadow-md"><Check size={20}/></button>
-                                    <button onClick={() => handleMedToggle(med.id, 'skip')} className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-md"><X size={20}/></button>
-                                 </>
-                              ) : <span className="text-xs font-black uppercase text-gray-400 px-2 flex items-center">{med.status}</span>}
-                           </div>
-                        </div>
-                     ))}
-                  </DashboardCard>
-               )}
+                       {/* AI ANALYSIS SECTION */}
+                       <div className="grid grid-cols-2 gap-4">
+                          <div onClick={runClinicalAnalysis} className="p-6 rounded-[2.5rem] bg-indigo-600 text-white shadow-xl shadow-indigo-100 flex flex-col items-center justify-center text-center cursor-pointer active:scale-95 transition-all relative overflow-hidden">
+                             {isAnalyzing ? <Loader2 className="animate-spin mb-2" size={32}/> : <Sparkles className="mb-2" size={32}/>}
+                             <span className="text-[10px] font-black uppercase tracking-widest">Run Clinical</span>
+                             <h4 className="font-black text-sm mt-1">ANALYSIS</h4>
+                          </div>
 
-               {/* EVENING */}
-               {eveningMeds.length > 0 && (
-                  <DashboardCard colorClass={VIVID_THEME.purple} title="Evening Meds" icon={Moon}>
-                     {eveningMeds.map(med => (
-                        <div key={med.id} className={`flex items-center justify-between p-4 mb-3 rounded-[2rem] bg-white border-2 border-black/5 shadow-sm ${med.status !== 'pending' ? 'opacity-40' : ''}`}>
-                           <div className="flex-1">
-                              <h4 className="font-black text-lg">{med.n}</h4>
-                              <p className="text-xs font-bold text-gray-400 uppercase">{med.d} • {med.time} • Stock: {med.count}</p>
-                           </div>
-                           <div className="flex gap-2">
-                              {/* REFILL BUTTON */}
-                              <button onClick={() => handleOrderRefill(med)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-sm border border-blue-200"><ShoppingCart size={18}/></button>
+                          <div onClick={handleOrderRefill} className="p-6 rounded-[2.5rem] bg-teal-50 border-2 border-teal-100 text-teal-600 flex flex-col items-center justify-center text-center cursor-pointer active:scale-95 transition-all">
+                             <ShoppingCart className="mb-2" size={32}/>
+                             <span className="text-[10px] font-black uppercase tracking-widest">Order Meds</span>
+                             <h4 className="font-black text-sm mt-1">REFILL</h4>
+                          </div>
+                       </div>
 
-                              {med.status === 'pending' ? (
-                                 <>
-                                    <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center shadow-md"><Check size={20}/></button>
-                                    <button onClick={() => handleMedToggle(med.id, 'skip')} className="w-10 h-10 bg-red-500 text-white rounded-xl flex items-center justify-center shadow-md"><X size={20}/></button>
-                                 </>
-                              ) : <span className="text-xs font-black uppercase text-gray-400 px-2 flex items-center">{med.status}</span>}
-                           </div>
-                        </div>
-                     ))}
-                  </DashboardCard>
-               )}
+                       {report && (
+                          <DashboardCard colorClass={VIVID_THEME.black} title="Clinical Report" icon={ShieldCheck}>
+                             <div className="flex items-end gap-2 mb-4">
+                                <span className="text-5xl font-black text-teal-400 leading-none">{report.score}</span>
+                                <span className="text-xs font-bold opacity-60 pb-1">HEALTH SCORE</span>
+                             </div>
+                             <p className="text-sm font-bold leading-relaxed mb-4">{report.summary}</p>
+                             <div className="flex flex-wrap gap-2">
+                                {report.warnings.map((w, i) => (
+                                   <div key={i} className="px-3 py-1 bg-white/10 rounded-full text-[9px] font-black uppercase text-rose-400 border border-rose-400/30">{w}</div>
+                                ))}
+                             </div>
+                          </DashboardCard>
+                       )}
+                    </>
+                 )}
 
-               {/* INJECTION QUADRANTS */}
-               {cycleMeds.length > 0 && (
-                  <DashboardCard colorClass={VIVID_THEME.teal} title="Injection Site" icon={Syringe}>
-                     <div className="grid grid-cols-2 gap-4 mb-4">
-                        {QUADRANTS.map(q => (
-                           <button key={q} onClick={() => startInjectionPrep(q)} className={`p-4 rounded-[1.5rem] font-black text-xl transition-all ${lastInjection.site === q ? 'bg-white text-teal-900 border-4 border-teal-100 shadow-md' : 'bg-teal-900/20 text-teal-100/50'}`}>{q}</button>
-                        ))}
-                     </div>
-                     <p className="text-center text-xs font-bold text-teal-100 uppercase">Last: {lastInjection.site} • {new Date(lastInjection.date).toLocaleDateString()}</p>
-                  </DashboardCard>
-               )}
+                 {/* --- DIET TAB --- */}
+                 {activeTab === 'diet' && (
+                    <div className="space-y-6">
+                       <DashboardCard colorClass={VIVID_THEME.black} title="Anti-Inflammatory Plan" icon={Salad}>
+                          <button onClick={generateDietPlan} className="w-full py-4 bg-teal-600 text-white rounded-2xl font-black uppercase text-xs mb-6 shadow-xl shadow-teal-900/20">Generate Daily Plan</button>
 
-               {/* DIARY */}
-               <DashboardCard colorClass={VIVID_THEME.panda} title="Diary & Tags" icon={FileText}>
-                  <div className="flex flex-wrap gap-2 mb-4 justify-center">
-                     {LIFESTYLE_TAGS.map((tag, i) => (
-                        <button key={i} onClick={() => setSelectedTags(prev => prev.includes(tag.label) ? prev.filter(t => t !== tag.label) : [...prev, tag.label])}
-                           className={`flex items-center gap-1 px-3 py-2 rounded-xl text-[10px] font-black transition-all ${selectedTags.includes(tag.label) ? tag.color + ' ring-2 ring-black/5' : 'bg-gray-100 text-gray-400 grayscale'}`}>
-                           <tag.icon size={12}/> {tag.label}
-                        </button>
-                     ))}
-                  </div>
-                  
-                  <div className="relative mb-4">
-                    <input 
-                      value={diaryInput} 
-                      onChange={(e) => setDiaryInput(e.target.value)} 
-                      placeholder="How do you feel?" 
-                      className="w-full p-4 pr-12 rounded-[1.5rem] border-2 border-gray-100 font-bold outline-none focus:border-teal-400" 
-                    />
-                    <button 
-                      onClick={() => handleVoiceInput(setDiaryInput)} 
-                      className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'text-gray-400 hover:text-teal-600'}`}
-                    >
-                      <Mic size={20}/>
-                    </button>
-                  </div>
+                          {dietPlan ? (
+                             <div className="space-y-4">
+                                {['breakfast', 'lunch', 'dinner', 'snack'].map(meal => (
+                                   <div key={meal} className="p-4 bg-white/5 rounded-2xl border border-white/10 flex items-center gap-4">
+                                      <div className="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center text-teal-400">
+                                         {meal === 'breakfast' && <Sun size={18}/>}
+                                         {meal === 'lunch' && <Sun size={18}/>}
+                                         {meal === 'dinner' && <Moon size={18}/>}
+                                         {meal === 'snack' && <Apple size={18}/>}
+                                      </div>
+                                      <div>
+                                         <h4 className="text-[10px] font-black uppercase text-teal-400">{meal}</h4>
+                                         <p className="text-sm font-bold text-white">{dietPlan[meal]}</p>
+                                      </div>
+                                   </div>
+                                ))}
+                             </div>
+                          ) : (
+                             <div className="text-center py-12 opacity-40">
+                                <Salad size={48} className="mx-auto mb-4"/>
+                                <p className="text-xs font-black uppercase">Click above to generate plan</p>
+                             </div>
+                          )}
+                       </DashboardCard>
+                    </div>
+                 )}
 
-                  <button onClick={() => { if(!diaryInput) return; setDiary(prev => [{id: Date.now(), text: diaryInput, tags: selectedTags, time: new Date().toLocaleTimeString()}, ...prev]); setDiaryInput(''); updateXP(20); }} className="w-full py-4 bg-[#26A69A] text-white rounded-[2rem] font-black uppercase shadow-lg">Log Entry</button>
-                  
-                  <div className="mt-6 space-y-3">
-                     {diary.slice(0,3).map(d => (
-                        <div key={d.id} className="p-3 bg-white border-2 border-gray-100 rounded-2xl text-xs font-bold text-gray-600">
-                           {d.text} <span className="block text-[9px] text-teal-400 uppercase mt-1">{d.tags?.join(', ')} • {d.time}</span>
-                        </div>
-                     ))}
-                  </div>
-               </DashboardCard>
-            </>
-         )}
+                 {/* --- CHAT TAB --- */}
+                 {activeTab === 'chat' && (
+                    <div className="h-[70vh] flex flex-col">
+                       <div className="flex-1 overflow-y-auto space-y-4 mb-4">
+                          {chatHistory.map((m, i) => (
+                             <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div className={`p-4 rounded-[2rem] max-w-[85%] font-bold text-sm ${m.role === 'user' ? 'bg-teal-600 text-white rounded-tr-none' : 'bg-white border-2 border-gray-100 text-gray-700 rounded-tl-none'}`}>
+                                   {m.text}
+                                </div>
+                             </div>
+                          ))}
+                          <div ref={chatEndRef}/>
+                       </div>
 
-         {/* --- DIET TAB --- */}
-         {activeTab === 'diet' && (
-            <DashboardCard colorClass={VIVID_THEME.green} title="Clinical Diet" icon={Leaf}>
-               {!dietPlan ? (
-                  <div className="text-center p-6">
-                     <p className="text-sm font-bold text-green-800 mb-4">No plan generated. Create a safe meal plan based on your medications.</p>
-                     <button onClick={generateDietPlan} className="px-6 py-3 bg-white text-green-700 font-black rounded-xl shadow-sm uppercase text-xs">Generate AI Plan</button>
-                  </div>
-               ) : (
-                  <div className="space-y-4">
-                     <div className="flex gap-2 overflow-x-auto pb-2">
-                        {dietPlan.preferredFoods?.map((f, i) => <span key={i} className="bg-white/40 px-3 py-1 rounded-lg text-xs font-bold text-green-900 whitespace-nowrap">{f}</span>)}
-                     </div>
-                     {dietPlan.meals?.map((m, i) => (
-                        <div key={i} className="bg-white/60 p-4 rounded-2xl">
-                           <span className="text-[10px] font-black uppercase text-green-800">{m.type}</span>
-                           <h4 className="font-black text-green-900">{m.name}</h4>
-                           <p className="text-xs text-green-700 leading-tight">{m.desc}</p>
-                        </div>
-                     ))}
-                  </div>
-               )}
-            </DashboardCard>
-         )}
+                       {/* CHAT INPUT + MIC */}
+                       <div className="flex gap-2 bg-white p-2 rounded-[2rem] border-2 border-gray-100 shadow-lg">
+                          <button
+                            onClick={() => handleVoiceInput(setChatInput)}
+                            className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-teal-50 hover:text-teal-600'}`}
+                          >
+                            <Mic size={20}/>
+                          </button>
+                          <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask Medical Assistant..." className="flex-1 p-3 bg-transparent font-bold outline-none"/>
+                          <button onClick={() => { if(!chatInput) return; setChatHistory(prev => [...prev, {role:'user', text:chatInput}]); setChatInput(''); setTimeout(() => setChatHistory(prev => [...prev, {role:'model', text:"I'm your Medical Assistant. I see you took your morning meds. Keep it up!"}]), 1000); }} className="p-3 bg-teal-600 text-white rounded-full"><Send size={20}/></button>
+                       </div>
+                    </div>
+                 )}
 
-         {/* --- STATS TAB (REBRANDED TO CLINICAL) --- */}
-         {activeTab === 'stats' && (
-            <DashboardCard colorClass={VIVID_THEME.blue} title="Clinical Report" icon={Stethoscope}>
-               <div className="bg-white/50 p-6 rounded-[2rem] mb-6">
-                  <p className="text-sm font-bold text-blue-900 whitespace-pre-wrap">{safetyAnalysis ? safetyAnalysis.summary : "Tap 'Clinical Analysis' to have the Doctor Agent find symptom triggers."}</p>
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                  <button onClick={runClinicalAnalysis} className="col-span-2 py-4 bg-white text-blue-900 rounded-[1.5rem] font-black text-sm uppercase shadow-sm border border-blue-100 flex items-center justify-center gap-2"><Stethoscope size={18}/> Clinical Analysis</button>
-                  <button onClick={playVoiceBriefing} className="col-span-2 py-4 bg-blue-600 text-white rounded-[1.5rem] font-black flex items-center justify-center gap-2 shadow-lg shadow-blue-200"><Volume2 size={20}/> VOICE BRIEFING</button>
-                  <button onClick={handleShareReport} className="col-span-2 py-4 bg-green-500 text-white rounded-[1.5rem] font-black text-xs uppercase flex items-center justify-center gap-2 shadow-md"><Share2 size={16}/> Share Report via WhatsApp</button>
-               </div>
-            </DashboardCard>
-         )}
+                 {/* --- VAULT TAB --- */}
+                 {activeTab === 'vault' && (
+                    <DashboardCard colorClass={VIVID_THEME.mint} title="Script Vault" icon={FolderOpen}>
+                       <div className="grid grid-cols-2 gap-4">
+                          {vault.map(v => (
+                             <div key={v.id} className="bg-white p-3 rounded-2xl border-2 border-teal-50 shadow-sm">
+                                <img src={v.image} className="w-full h-24 object-cover rounded-xl mb-2 bg-gray-100"/>
+                                <h4 className="font-black text-xs truncate">{v.name}</h4>
+                                <p className="text-[10px] font-bold text-gray-400">{v.date}</p>
+                             </div>
+                          ))}
+                          <div onClick={() => fileInputRef.current.click()} className="bg-teal-100/50 p-3 rounded-2xl border-2 border-dashed border-teal-200 flex flex-col items-center justify-center min-h-[140px] cursor-pointer">
+                             <Camera className="text-teal-400 mb-2"/>
+                             <span className="text-xs font-black text-teal-600">SCAN NEW</span>
+                          </div>
+                       </div>
+                    </DashboardCard>
+                 )}
 
-         {/* --- CHAT TAB --- */}
-         {activeTab === 'chat' && (
-            <div className="h-[70vh] flex flex-col">
-               <div className="flex-1 overflow-y-auto space-y-4 mb-4">
-                  {chatHistory.map((m, i) => (
-                     <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`p-4 rounded-[2rem] max-w-[85%] font-bold text-sm ${m.role === 'user' ? 'bg-teal-600 text-white rounded-tr-none' : 'bg-white border-2 border-gray-100 text-gray-700 rounded-tl-none'}`}>
-                           {m.text}
-                        </div>
-                     </div>
-                  ))}
-                  <div ref={chatEndRef}/>
-               </div>
-               
-               {/* CHAT INPUT + MIC */}
-               <div className="flex gap-2 bg-white p-2 rounded-[2rem] border-2 border-gray-100 shadow-lg">
-                  <button 
-                    onClick={() => handleVoiceInput(setChatInput)}
-                    className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-gray-100 text-gray-500 hover:bg-teal-50 hover:text-teal-600'}`}
-                  >
-                    <Mic size={20}/>
-                  </button>
-                  <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} placeholder="Ask Medical Assistant..." className="flex-1 p-3 bg-transparent font-bold outline-none"/>
-                  <button onClick={() => { if(!chatInput) return; setChatHistory(prev => [...prev, {role:'user', text:chatInput}]); setChatInput(''); setTimeout(() => setChatHistory(prev => [...prev, {role:'model', text:"I'm your Medical Assistant. I see you took your morning meds. Keep it up!"}]), 1000); }} className="p-3 bg-teal-600 text-white rounded-full"><Send size={20}/></button>
-               </div>
+                 {/* --- ADMIN TAB --- */}
+                 {activeTab === 'settings' && (
+                    <div className="space-y-6">
+                       <DashboardCard colorClass={VIVID_THEME.black} title="System" icon={Lock}>
+                          <label className="text-xs font-black text-gray-500 uppercase ml-2">Gemini API Key</label>
+                          <input type="password" value={apiKeys.gemini} onChange={(e) => setApiKeys({...apiKeys, gemini: e.target.value})} className="w-full p-4 bg-[#333] rounded-2xl text-white font-mono text-xs mt-2 border border-[#444] mb-4" placeholder="sk-..."/>
+
+                          {/* PHARMACY CONFIGURATION */}
+                          <div className="mb-6 border-t border-[#444] pt-4">
+                             <h3 className="text-white font-black uppercase text-sm mb-3 flex items-center gap-2"><ShoppingCart size={16}/> Pharmacy Config</h3>
+                             <div className="space-y-2">
+                                <input value={pharmacy.name} onChange={(e) => setPharmacy({...pharmacy, name: e.target.value})} placeholder="Pharmacy Name" className="w-full p-3 bg-[#444] rounded-xl text-white text-xs border border-[#555]" />
+                                <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
+                                   <MessageCircle size={14} className="text-green-400"/>
+                                   <input value={pharmacy.phone} onChange={(e) => setPharmacy({...pharmacy, phone: e.target.value})} placeholder="WhatsApp Number (e.g. 15550101)" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
+                                </div>
+                                <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
+                                   <Mail size={14} className="text-blue-400"/>
+                                   <input value={pharmacy.email} onChange={(e) => setPharmacy({...pharmacy, email: e.target.value})} placeholder="Pharmacy Email (Optional)" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
+                                </div>
+                             </div>
+                          </div>
+
+                          {/* EMERGENCY CONTACT CONFIG */}
+                          <div className="mb-6 border-t border-[#444] pt-4">
+                             <h3 className="text-white font-black uppercase text-sm mb-3 flex items-center gap-2"><AlertTriangle size={16} className="text-red-500"/> SOS Contact</h3>
+                             <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
+                                <Phone size={14} className="text-red-400"/>
+                                <input value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} placeholder="Emergency Phone Number" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
+                             </div>
+                          </div>
+
+                          <div className="flex items-center justify-between p-4 bg-[#333] rounded-2xl mb-4">
+                             <span className="text-white font-bold text-sm">Clinical Nutrition</span>
+                             <button onClick={() => setShowDietModule(!showDietModule)} className="text-white">{showDietModule ? <ToggleRight className="text-green-400"/> : <ToggleLeft/>}</button>
+                          </div>
+
+                          <button onClick={() => {
+                             const phone = emergencyContact ? emergencyContact.replace(/[^0-9]/g, '') : '';
+                             if(!phone) return alert("Please set an Emergency Contact number above first.");
+                             window.location.href = `sms:${phone}?body=SOS! I need help.`;
+                          }} className="w-full py-4 bg-red-600 text-white font-black rounded-2xl uppercase mb-4 flex items-center justify-center gap-2"><AlertTriangle size={18}/> Emergency SOS</button>
+
+                          <div className="grid grid-cols-2 gap-4">
+                             <button onClick={handleExportData} className="py-4 bg-[#555] text-white font-black rounded-2xl uppercase text-xs flex items-center justify-center gap-2"><Save size={16}/> Backup Data</button>
+                             <button onClick={() => { if(confirm("Reset App?")) localStorage.clear(); window.location.reload(); }} className="py-4 bg-[#444] text-red-400 font-black rounded-2xl uppercase text-xs">Factory Reset</button>
+                          </div>
+                       </DashboardCard>
+                    </div>
+                 )}
+              </main>
+
+              {/* INPUTS */}
+              <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handlePillScan}/>
+
+              {/* NAV */}
+              <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-teal-50 px-6 py-4 pb-8 flex justify-between items-center z-[800] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+                 <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center ${activeTab === 'home' ? 'text-teal-600' : 'text-gray-300'}`}><Sun size={24}/><span className="text-[9px] font-black uppercase mt-1">Home</span></button>
+
+                 {/* DYNAMIC DIET TAB */}
+                 {showDietModule && (
+                    <button onClick={() => setActiveTab('diet')} className={`flex flex-col items-center ${activeTab === 'diet' ? 'text-teal-600' : 'text-gray-300'}`}><Leaf size={24}/><span className="text-[9px] font-black uppercase mt-1">Diet</span></button>
+                 )}
+
+                 <div className="relative -top-6"><button onClick={() => setActiveTab('chat')} className="w-16 h-16 bg-[#26A69A] rounded-full border-4 border-[#E0F2F1] shadow-xl flex items-center justify-center text-white active:scale-95 transition-all"><MessageCircle size={32}/></button></div>
+                 <button onClick={() => setActiveTab('vault')} className={`flex flex-col items-center ${activeTab === 'vault' ? 'text-teal-600' : 'text-gray-300'}`}><FolderOpen size={24}/><span className="text-[9px] font-black uppercase mt-1">Vault</span></button>
+                 <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-teal-600' : 'text-gray-300'}`}><Settings size={24}/><span className="text-[9px] font-black uppercase mt-1">Admin</span></button>
+              </nav>
+
+              {/* STYLES */}
+              <style>{`
+                @keyframes shout-lean { 0%, 100% { transform: scale(1.0) rotate(0deg); } 50% { transform: scale(1.1) rotate(5deg); } }
+                @keyframes bounce-gentle { 0%, 100% { transform: translateY(0) translateX(-50%); } 50% { transform: translateY(-10px) translateX(-50%); } }
+                @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+                @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.05); opacity: 0.8; } }
+              `}</style>
             </div>
-         )}
+          );
+        }
 
-         {/* --- VAULT TAB --- */}
-         {activeTab === 'vault' && (
-            <DashboardCard colorClass={VIVID_THEME.mint} title="Script Vault" icon={FolderOpen}>
-               <div className="grid grid-cols-2 gap-4">
-                  {vault.map(v => (
-                     <div key={v.id} className="bg-white p-3 rounded-2xl border-2 border-teal-50 shadow-sm">
-                        <img src={v.image} className="w-full h-24 object-cover rounded-xl mb-2 bg-gray-100"/>
-                        <h4 className="font-black text-xs truncate">{v.name}</h4>
-                        <p className="text-[10px] font-bold text-gray-400">{v.date}</p>
-                     </div>
-                  ))}
-                  <div onClick={() => fileInputRef.current.click()} className="bg-teal-100/50 p-3 rounded-2xl border-2 border-dashed border-teal-200 flex flex-col items-center justify-center min-h-[140px] cursor-pointer">
-                     <Camera className="text-teal-400 mb-2"/>
-                     <span className="text-xs font-black text-teal-600">SCAN NEW</span>
-                  </div>
-               </div>
-            </DashboardCard>
-         )}
-
-         {/* --- ADMIN TAB --- */}
-         {activeTab === 'settings' && (
-            <div className="space-y-6">
-               <DashboardCard colorClass={VIVID_THEME.black} title="System" icon={Lock}>
-                  <label className="text-xs font-black text-gray-500 uppercase ml-2">Gemini API Key</label>
-                  <input type="password" value={apiKeys.gemini} onChange={(e) => setApiKeys({...apiKeys, gemini: e.target.value})} className="w-full p-4 bg-[#333] rounded-2xl text-white font-mono text-xs mt-2 border border-[#444] mb-4" placeholder="sk-..."/>
-
-                  {/* PHARMACY CONFIGURATION */}
-                  <div className="mb-6 border-t border-[#444] pt-4">
-                     <h3 className="text-white font-black uppercase text-sm mb-3 flex items-center gap-2"><ShoppingCart size={16}/> Pharmacy Config</h3>
-                     <div className="space-y-2">
-                        <input value={pharmacy.name} onChange={(e) => setPharmacy({...pharmacy, name: e.target.value})} placeholder="Pharmacy Name" className="w-full p-3 bg-[#444] rounded-xl text-white text-xs border border-[#555]" />
-                        <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
-                           <MessageCircle size={14} className="text-green-400"/>
-                           <input value={pharmacy.phone} onChange={(e) => setPharmacy({...pharmacy, phone: e.target.value})} placeholder="WhatsApp Number (e.g. 15550101)" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
-                        </div>
-                        <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
-                           <Mail size={14} className="text-blue-400"/>
-                           <input value={pharmacy.email} onChange={(e) => setPharmacy({...pharmacy, email: e.target.value})} placeholder="Pharmacy Email (Optional)" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
-                        </div>
-                     </div>
-                  </div>
-                  
-                  {/* EMERGENCY CONTACT CONFIG */}
-                  <div className="mb-6 border-t border-[#444] pt-4">
-                     <h3 className="text-white font-black uppercase text-sm mb-3 flex items-center gap-2"><AlertTriangle size={16} className="text-red-500"/> SOS Contact</h3>
-                     <div className="flex items-center gap-2 bg-[#444] rounded-xl border border-[#555] px-3">
-                        <Phone size={14} className="text-red-400"/>
-                        <input value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} placeholder="Emergency Phone Number" className="w-full p-3 bg-transparent text-white text-xs outline-none" />
-                     </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between p-4 bg-[#333] rounded-2xl mb-4">
-                     <span className="text-white font-bold text-sm">Clinical Nutrition</span>
-                     <button onClick={() => setShowDietModule(!showDietModule)} className="text-white">{showDietModule ? <ToggleRight className="text-green-400"/> : <ToggleLeft/>}</button>
-                  </div>
-
-                  <button onClick={() => { 
-                     const phone = emergencyContact ? emergencyContact.replace(/[^0-9]/g, '') : '';
-                     if(!phone) return alert("Please set an Emergency Contact number above first.");
-                     window.location.href = `sms:${phone}?body=SOS! I need help.`;
-                  }} className="w-full py-4 bg-red-600 text-white font-black rounded-2xl uppercase mb-4 flex items-center justify-center gap-2"><AlertTriangle size={18}/> Emergency SOS</button>
-
-                  <div className="grid grid-cols-2 gap-4">
-                     <button onClick={handleExportData} className="py-4 bg-[#555] text-white font-black rounded-2xl uppercase text-xs flex items-center justify-center gap-2"><Save size={16}/> Backup Data</button>
-                     <button onClick={() => { if(confirm("Reset App?")) localStorage.clear(); window.location.reload(); }} className="py-4 bg-[#444] text-red-400 font-black rounded-2xl uppercase text-xs">Factory Reset</button>
-                  </div>
-               </DashboardCard>
-            </div>
-         )}
-      </main>
-
-      {/* INPUTS */}
-      <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handlePillScan}/>
-
-      {/* NAV */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-teal-50 px-6 py-4 pb-8 flex justify-between items-center z-[800] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-         <button onClick={() => setActiveTab('home')} className={`flex flex-col items-center ${activeTab === 'home' ? 'text-teal-600' : 'text-gray-300'}`}><Sun size={24}/><span className="text-[9px] font-black uppercase mt-1">Home</span></button>
-         
-         {/* DYNAMIC DIET TAB */}
-         {showDietModule && (
-            <button onClick={() => setActiveTab('diet')} className={`flex flex-col items-center ${activeTab === 'diet' ? 'text-teal-600' : 'text-gray-300'}`}><Leaf size={24}/><span className="text-[9px] font-black uppercase mt-1">Diet</span></button>
-         )}
-         
-         <div className="relative -top-6"><button onClick={() => setActiveTab('chat')} className="w-16 h-16 bg-[#26A69A] rounded-full border-4 border-[#E0F2F1] shadow-xl flex items-center justify-center text-white active:scale-95 transition-all"><MessageCircle size={32}/></button></div>
-         <button onClick={() => setActiveTab('vault')} className={`flex flex-col items-center ${activeTab === 'vault' ? 'text-teal-600' : 'text-gray-300'}`}><FolderOpen size={24}/><span className="text-[9px] font-black uppercase mt-1">Vault</span></button>
-         <button onClick={() => setActiveTab('settings')} className={`flex flex-col items-center ${activeTab === 'settings' ? 'text-teal-600' : 'text-gray-300'}`}><Settings size={24}/><span className="text-[9px] font-black uppercase mt-1">Admin</span></button>
-      </nav>
-
-      {/* STYLES */}
-      <style>{`
-        @keyframes shout-lean { 0%, 100% { transform: scale(1.0) rotate(0deg); } 50% { transform: scale(1.1) rotate(5deg); } }
-        @keyframes bounce-gentle { 0%, 100% { transform: translateY(0) translateX(-50%); } 50% { transform: translateY(-10px) translateX(-50%); } }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-        @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.05); opacity: 0.8; } }
-      `}</style>
-    </div>
-  );
-}
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
