@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- SUPER PERMISSIVE CSP TO FIX CONNECTION ERRORS -->
+    <!-- SUPER PERMISSIVE CSP -->
     <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline'; frame-src *;">
-    <title>MASTER MEDS PRO - V8.3 (AUTO-DISCOVERY)</title>
+    <title>MASTER MEDS PRO - V8.6 (CLINICAL FIX)</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- React & ReactDOM -->
@@ -44,7 +44,7 @@
           MessageCircle, Send, Download, BarChart3, Trophy, Lock, Key,
           Leaf, Apple, Utensils, Zap, BedDouble, Clock, Mic, FolderOpen,
           Share2, FileJson, AlertTriangle, Coffee, Sunrise, Sunset, ToggleLeft, ToggleRight,
-          Phone, Eye, CloudRain, Wind, ThermometerSun, Mail, Save, Siren, ScanLine, Wifi, WifiOff, CheckCircle2, ServerCrash, Cpu
+          Phone, Eye, CloudRain, Wind, ThermometerSun, Mail, Save, Siren, ScanLine, Wifi, WifiOff, CheckCircle2, ServerCrash, Cpu, Trash2, PlusCircle
         } = LucideReact;
 
         // --- ASSETS & CONSTANTS ---
@@ -138,8 +138,8 @@
           const [loadingMsg, setLoadingMsg] = useState("Processing...");
           
           const [apiKeys, setApiKeys] = useState({ gemini: '' });
-          const [activeModel, setActiveModel] = useState(''); // Empty initially
-          const [apiStatus, setApiStatus] = useState('unknown'); // unknown, checking, online, error
+          const [activeModel, setActiveModel] = useState('gemini-1.5-flash'); // Default fallback
+          const [apiStatus, setApiStatus] = useState('unknown'); 
           const [detectedModels, setDetectedModels] = useState([]);
 
           const [pharmacy, setPharmacy] = useState({ name: '', phone: '', email: '' });
@@ -147,9 +147,10 @@
           const [showSOSModal, setShowSOSModal] = useState(false);
           const [now, setNow] = useState(new Date());
 
-          // New State for Staging
           const [stagedMeds, setStagedMeds] = useState([]);
           const [showScriptReview, setShowScriptReview] = useState(false);
+          const [showAddMedModal, setShowAddMedModal] = useState(false);
+          const [newMed, setNewMed] = useState({ n: '', d: '', block: 'am', time: '08:00' });
 
           const fileInputRef = useRef(null);
           const scriptInputRef = useRef(null);
@@ -181,7 +182,7 @@
           const [flareForecast, setFlareForecast] = useState(null);
           const [showInjectionPrep, setShowInjectionPrep] = useState(false);
           const [selectedInjectionSite, setSelectedInjectionSite] = useState(null);
-          const [chatHistory, setChatHistory] = useState([{ role: 'model', text: "Hello! I'm your Medical Assistant. I can track your meds, analyze your diet, and help with interactions!" }]);
+          const [chatHistory, setChatHistory] = useState([{ role: 'model', text: "Hello! I'm Dr. Gemini, your Senior Rheumatologist Assistant. How can I help with your regimen today?" }]);
           const [chatInput, setChatInput] = useState("");
 
           const morningMeds = useMemo(() => meds.filter(m => m.block === 'am'), [meds]);
@@ -199,8 +200,49 @@
           const hasPending = meds.some(m => m.status === 'pending');
           const shouldShout = hasPending && (now.getHours() < 12 || now.getHours() > 18);
 
+          // --- API ENGINE ---
+          const fetchWithRetry = async (url, options) => {
+            const res = await fetch(url, options);
+            if (!res.ok) { 
+                const errBody = await res.json().catch(()=>({})); 
+                // Auto-recover logic could go here
+                throw new Error(errBody.error?.message || `HTTP ${res.status}`); 
+            }
+            return await res.json();
+          };
+
+          const discoverAndConnect = async (customKey = null) => {
+             const keyToUse = customKey || apiKeys.gemini;
+             if(!keyToUse) return; // Don't alert on load, just return
+             
+             setApiStatus('checking');
+             try {
+                 const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models?key=${keyToUse}`, { method: 'GET' });
+                 if (!response.models) throw new Error("No models");
+
+                 const capableModels = response.models.filter(m => m.supportedGenerationMethods?.includes("generateContent"));
+                 if (capableModels.length === 0) throw new Error("No gen models");
+
+                 let bestModel = null;
+                 const preferredOrder = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"];
+                 
+                 for (const pref of preferredOrder) {
+                     const found = capableModels.find(m => m.name.includes(pref));
+                     if (found) { bestModel = found.name.replace("models/", ""); break; }
+                 }
+                 if (!bestModel) bestModel = capableModels[0].name.replace("models/", "");
+
+                 setActiveModel(bestModel);
+                 setApiStatus('online');
+                 // Only alert if manually triggered (we can track this via a param if needed, but for now simple is ok)
+             } catch (e) {
+                 setApiStatus('error');
+                 console.error("Discovery Failed", e);
+             }
+          };
+
           useEffect(() => {
-            const saved = localStorage.getItem('master_meds_v8_3_autodiscovery');
+            const saved = localStorage.getItem('master_meds_v8_6_clinical');
             if (saved) {
               try {
                 const data = JSON.parse(saved);
@@ -208,16 +250,17 @@
                 if (data.stats) setStats(data.stats);
                 if (data.vault) setVault(data.vault);
                 if (data.diary) setDiary(data.diary);
-                if (data.apiKeys) setApiKeys(data.apiKeys);
-                if (data.activeModel) setActiveModel(data.activeModel); // Load saved model
+                if (data.apiKeys) {
+                    setApiKeys(data.apiKeys);
+                    if(data.apiKeys.gemini) discoverAndConnect(data.apiKeys.gemini);
+                }
+                if (data.activeModel) setActiveModel(data.activeModel);
                 if (data.pharmacy) setPharmacy(data.pharmacy);
                 if (data.humiraCycle) setHumiraCycle(data.humiraCycle);
                 if (data.lastInjection) setLastInjection(data.lastInjection);
                 if (data.emergency) setEmergency(data.emergency); 
                 if (data.dietPlan) setDietPlan(data.dietPlan);
                 if (typeof data.showDietModule === 'boolean') setShowDietModule(data.showDietModule);
-                
-                if (data.apiKeys && data.apiKeys.gemini && data.activeModel) setApiStatus('online');
               } catch (e) { console.error("Load Error", e); }
             }
             const ticker = setInterval(() => setNow(new Date()), 60000);
@@ -226,7 +269,7 @@
 
           useEffect(() => {
             try {
-                localStorage.setItem('master_meds_v8_3_autodiscovery', JSON.stringify({
+                localStorage.setItem('master_meds_v8_6_clinical', JSON.stringify({
                   meds, stats, vault, diary, apiKeys, activeModel, humiraCycle, lastInjection, emergency, dietPlan, pharmacy, showDietModule
                 }));
             } catch (e) { console.warn("Storage Quota", e); }
@@ -249,6 +292,30 @@
               }
               return m;
             }));
+          };
+
+          const handleDeleteMed = (id) => {
+              if (confirm("Remove this medication?")) {
+                  setMeds(prev => prev.filter(m => m.id !== id));
+              }
+          };
+
+          const handleAddMed = () => {
+              if (!newMed.n) return alert("Please enter a name");
+              const medToAdd = {
+                  id: Date.now(),
+                  n: newMed.n,
+                  d: newMed.d || 'As directed',
+                  block: newMed.block,
+                  time: newMed.time,
+                  status: 'pending',
+                  schedule: DAYS_OF_WEEK,
+                  count: 30
+              };
+              setMeds(prev => [...prev, medToAdd]);
+              setShowAddMedModal(false);
+              setNewMed({ n: '', d: '', block: 'am', time: '08:00' });
+              updateXP(50);
           };
 
           const handleBulkRefill = () => {
@@ -306,78 +373,47 @@
             recognition.start();
           };
 
-          // --- ROBUST API ENGINE ---
-          const fetchWithRetry = async (url, options) => {
-            const res = await fetch(url, options);
-            if (!res.ok) { const errBody = await res.json().catch(()=>({})); throw new Error(errBody.error?.message || `HTTP ${res.status}`); }
-            return await res.json();
-          };
-
-          // --- AUTO DISCOVERY LOGIC ---
-          const discoverAndConnect = async () => {
-             if(!apiKeys.gemini) return alert("Please enter a key first.");
-             setLoading(true);
-             setLoadingMsg("Searching for models...");
-             setApiStatus('checking');
+          // --- INTELLIGENT FEATURES ---
+          
+          const handleChatSend = async () => {
+             if(!chatInput || !apiKeys.gemini) return;
+             const userMsg = { role: 'user', text: chatInput };
+             setChatHistory(prev => [...prev, userMsg]);
+             setChatInput('');
+             
+             // AI Reply
+             const historyContext = chatHistory.map(m => `${m.role === 'user' ? 'Patient' : 'Doctor'}: ${m.text}`).join('\n');
+             const prompt = `Context: Patient has these meds: ${meds.map(m=>m.n).join(', ')}. 
+             Chat History:
+             ${historyContext}
+             Patient: ${userMsg.text}
+             Doctor (You): Provide short, clinical, empathetic advice.`;
 
              try {
-                 // 1. Fetch available models for this key
-                 const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKeys.gemini}`, { method: 'GET' });
-                 
-                 if (!response.models) throw new Error("No models returned");
-
-                 // 2. Filter for generating content
-                 const capableModels = response.models.filter(m => 
-                    m.supportedGenerationMethods && 
-                    m.supportedGenerationMethods.includes("generateContent")
-                 );
-
-                 if (capableModels.length === 0) throw new Error("Key has no access to generation models");
-
-                 // 3. Smart Selection (Prioritize Flash > Pro)
-                 let bestModel = null;
-                 const preferredOrder = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"];
-                 
-                 for (const pref of preferredOrder) {
-                     const found = capableModels.find(m => m.name.includes(pref));
-                     if (found) {
-                         bestModel = found.name.replace("models/", ""); 
-                         break;
-                     }
-                 }
-
-                 if (!bestModel) bestModel = capableModels[0].name.replace("models/", "");
-
-                 // 4. Verify the selection works
-                 setLoadingMsg(`Verifying ${bestModel}...`);
-                 await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${bestModel}:generateContent?key=${apiKeys.gemini}`, {
+                // Use activeModel or fallback
+                const modelToUse = activeModel || 'gemini-1.5-flash';
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKeys.gemini}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: "OK" }] }] })
-                 });
-
-                 setActiveModel(bestModel);
-                 setApiStatus('online');
-                 alert(`Success! Linked to: ${bestModel}`);
-
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const reply = data.candidates[0].content.parts[0].text;
+                setChatHistory(prev => [...prev, { role: 'model', text: reply }]);
              } catch (e) {
-                 setApiStatus('error');
-                 console.error(e);
-                 alert(`Discovery Failed: ${e.message}. Check your API Key permissions.`);
-             } finally {
-                 setLoading(false);
+                setChatHistory(prev => [...prev, { role: 'model', text: "I'm having trouble connecting to the medical database. Please check your internet or API key." }]);
              }
           };
 
-          // --- API FUNCTIONS (USING DYNAMIC ACTIVE MODEL) ---
           const runClinicalAnalysis = async () => {
-            if (apiStatus !== 'online' || !activeModel) return alert("Please verify API connection in Admin tab first.");
-            setLoading(true); setLoadingMsg("Analyzing...");
-            try {
+             const modelToUse = activeModel || 'gemini-1.5-flash';
+             if (!apiKeys.gemini) return alert("Please add API Key in Admin tab.");
+             
+             setLoading(true); setLoadingMsg("Clinical Analysis...");
+             try {
                 const medHistory = meds.filter(m => m.status === 'taken').map(m => m.n).join(', ');
                 const recentDiary = diary.slice(0, 10).map(d => `${d.time}: ${d.text}`).join('\n');
                 const prompt = `Act as a Senior Rheumatologist. Analyze: Meds: ${medHistory}. Diary: ${recentDiary}. Task: Pattern/Trigger analysis. Return JSON: {"interactions": [], "correlations": [], "summary": ""}`;
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKeys.gemini}`, {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKeys.gemini}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
@@ -389,10 +425,11 @@
           };
 
           const generateFlareForecast = async () => {
-            if (apiStatus !== 'online' || !selectedTags.length || !activeModel) return;
+            const modelToUse = activeModel || 'gemini-1.5-flash';
+            if (!apiKeys.gemini || !selectedTags.length) return;
             try {
               const prompt = `Health Helper. Tags: ${selectedTags.join(', ')}. Predict Flare Risk (Low/Medium/High) and 1 tip. JSON: {"risk": "", "tip": ""}`;
-              const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKeys.gemini}`, {
+              const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKeys.gemini}`, {
                   method: 'POST', headers: {'Content-Type': 'application/json'},
                   body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
               });
@@ -403,29 +440,36 @@
           useEffect(() => { if (selectedTags.length > 0) generateFlareForecast(); }, [selectedTags]);
 
           const generateDietPlan = async () => {
-            if (apiStatus !== 'online' || !activeModel) return alert("Please verify API connection in Admin tab first.");
+            const modelToUse = activeModel || 'gemini-1.5-flash';
+            if (!apiKeys.gemini) return alert("Please add API Key in Admin tab.");
+            
             setLoading(true); setLoadingMsg("Generating Plan...");
             try {
                 const prompt = `1-day Clinical Meal Plan for meds: [${meds.map(m=>m.n).join(',')}]. JSON: {"preferredFoods": [], "meals": [], "hydrationGoal": ""}`;
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKeys.gemini}`, {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKeys.gemini}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 setDietPlan(safeJsonParse(data.candidates[0].content.parts[0].text));
                 updateXP(50);
-            } catch (e) { alert(`Diet Plan Error: ${e.message}`); } finally { setLoading(false); }
+            } catch (e) { alert(`Diet Plan Error: ${e.message}. Try verifying connection in Admin.`); } finally { setLoading(false); }
           };
 
           const handlePillScan = async (e) => {
             const file = e.target.files[0];
-            if (!file || apiStatus !== 'online' || !activeModel) return alert("Please verify API connection first.");
+            e.target.value = null; // Reset input to allow same file upload
+            if (!file) return;
+            
+            const modelToUse = activeModel || 'gemini-1.5-flash';
+            if (!apiKeys.gemini) return alert("Please add API Key in Admin tab.");
+
             setLoading(true); setLoadingMsg("Scanning...");
             const reader = new FileReader();
             reader.onloadend = async () => {
                const base64 = reader.result.split(',')[1];
                try {
                  const prompt = `Identify med from image. JSON: {"name": "", "dosage": "", "schedule": []}`;
-                 const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKeys.gemini}`, {
+                 const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKeys.gemini}`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/png", data: base64 } }] }], generationConfig: { responseMimeType: "application/json" } })
                  });
@@ -438,27 +482,41 @@
             reader.readAsDataURL(file);
           };
 
-          // --- SMART SCRIPT PARSER ---
+          // --- ADVANCED PRESCRIPTION PARSING (V8.6) ---
           const handleScriptUpload = (e) => {
               const file = e.target.files[0];
+              e.target.value = null; 
               if (!file) return;
-              setLoading(true); setLoadingMsg("Reading Script...");
+              
+              setLoading(true); setLoadingMsg("Analyzing Script...");
               const reader = new FileReader();
               reader.onloadend = async () => {
                   const isPdf = file.type.includes('pdf');
                   const base64 = reader.result.split(',')[1];
                   const mimeType = isPdf ? "application/pdf" : file.type;
                   
-                  // 1. Save to Vault
                   const newItem = { id: Date.now(), name: file.name, date: new Date().toLocaleDateString(), data: reader.result, type: isPdf ? 'pdf' : 'image', mime: file.type };
                   setVault(prev => [newItem, ...prev]);
 
-                  // 2. AI Parsing (If API Key exists)
-                  if (apiStatus === 'online' && activeModel) {
+                  const modelToUse = activeModel || 'gemini-1.5-flash';
+
+                  if (apiKeys.gemini) {
+                      setLoadingMsg("AI Routing meds...");
                       try {
-                          const prompt = `Analyze this medical prescription/document. Extract all medications. For each, determine the best time block based on instructions (Morning='am', Night/Bedtime='pm', Weekly/Injection='cycle'). Return JSON: { "medications": [{ "n": "Name", "d": "Dosage", "block": "am/pm/cycle", "time": "08:00 or 20:00", "count": 30 }] }`;
+                          // REFINED PROMPT FOR COMPLEX REGIMENS
+                          const prompt = `Analyze this medical prescription document. Extract all medications. 
                           
-                          const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${apiKeys.gemini}`, {
+                          CRITICAL ROUTING RULES:
+                          1. "bd" or "b.d." (Twice Daily) -> Create TWO separate entries: one 'am' (08:00) and one 'pm' (20:00).
+                          2. "nocte" (Night) -> Route to 'pm' (20:00).
+                          3. "daily" -> Route to 'am' (08:00).
+                          4. "prn" (As needed) -> Route to 'am' but label status 'pending' (optional).
+                          5. Specific days (e.g. "Mon, Wed, Fri") -> Route to 'cycle' with time '08:00'.
+                          6. Weekly/Monthly -> Route to 'cycle'.
+
+                          Return JSON: { "medications": [{ "n": "Name", "d": "Dosage", "block": "am/pm/cycle", "time": "HH:MM", "count": 30 }] }`;
+                          
+                          const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/${modelToUse}:generateContent?key=${apiKeys.gemini}`, {
                             method: 'POST', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: mimeType, data: base64 } }] }], generationConfig: { responseMimeType: "application/json" } })
                           });
@@ -478,14 +536,14 @@
                               setStagedMeds(foundMeds);
                               setShowScriptReview(true); 
                           } else {
-                              alert("Script saved to Vault. (AI found no medications to import).");
+                              alert("Script saved. (AI found no readable meds).");
                           }
                       } catch (err) {
                           console.error("AI Parsing Error:", err);
-                          alert(`Script saved to Vault. (AI Parse Failed: ${err.message})`);
+                          alert(`Script saved. (AI Analysis Failed: ${err.message})`);
                       }
                   } else {
-                      alert("Script saved to Vault. Please verify API Key in Admin tab to enable auto-parsing.");
+                      alert("Script saved to Vault. To enable Auto-Routing, add an API Key.");
                   }
                   
                   updateXP(25);
@@ -513,7 +571,7 @@
                      </div>
                      <div>
                         <h1 className="text-3xl font-black text-[#212121] leading-none tracking-tighter">MASTER<br/><span className="text-teal-600">MEDS PRO</span></h1>
-                        <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v8.3 Auto-Discovery</p>
+                        <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v8.6 Clinical Fix</p>
                      </div>
                   </div>
                   <div className="flex gap-3">
@@ -530,6 +588,28 @@
                 </div>
               )}
 
+              {/* MANUAL ADD MODAL */}
+              {showAddMedModal && (
+                  <div className="fixed inset-0 z-[999] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
+                      <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl animate-slide-up">
+                          <h2 className="text-xl font-black uppercase text-teal-800 mb-4 flex items-center gap-2"><PlusCircle/> Add Medication</h2>
+                          <div className="space-y-3">
+                              <input value={newMed.n} onChange={e=>setNewMed({...newMed, n:e.target.value})} placeholder="Medication Name" className="w-full p-4 bg-gray-100 rounded-2xl font-bold" />
+                              <input value={newMed.d} onChange={e=>setNewMed({...newMed, d:e.target.value})} placeholder="Dosage (e.g. 50mg)" className="w-full p-4 bg-gray-100 rounded-2xl font-bold" />
+                              <div className="grid grid-cols-2 gap-2">
+                                  <button onClick={()=>setNewMed({...newMed, block:'am'})} className={`p-4 rounded-2xl font-black ${newMed.block==='am'?'bg-orange-100 text-orange-600 border-2 border-orange-200':'bg-gray-50 text-gray-400'}`}>Morning</button>
+                                  <button onClick={()=>setNewMed({...newMed, block:'pm'})} className={`p-4 rounded-2xl font-black ${newMed.block==='pm'?'bg-purple-100 text-purple-600 border-2 border-purple-200':'bg-gray-50 text-gray-400'}`}>Night</button>
+                              </div>
+                              <input type="time" value={newMed.time} onChange={e=>setNewMed({...newMed, time:e.target.value})} className="w-full p-4 bg-gray-100 rounded-2xl font-bold" />
+                          </div>
+                          <div className="flex gap-2 mt-6">
+                              <button onClick={() => setShowAddMedModal(false)} className="flex-1 py-4 bg-gray-200 text-gray-600 font-black rounded-2xl uppercase">Cancel</button>
+                              <button onClick={handleAddMed} className="flex-1 py-4 bg-teal-600 text-white font-black rounded-2xl uppercase">Add</button>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
               {/* SCRIPT REVIEW MODAL */}
               {showScriptReview && (
                   <div className="fixed inset-0 z-[999] flex items-end md:items-center justify-center p-6 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -540,12 +620,12 @@
                           </div>
                           
                           <div className="bg-teal-50 p-4 rounded-2xl mb-6 max-h-[50vh] overflow-y-auto">
-                              <p className="text-xs font-bold text-teal-600 uppercase mb-3">AI Detected {stagedMeds.length} Medications:</p>
+                              <p className="text-xs font-bold text-teal-600 uppercase mb-3">AI Auto-Routed {stagedMeds.length} Medications:</p>
                               {stagedMeds.map((m, i) => (
                                   <div key={i} className="bg-white p-3 rounded-xl mb-2 flex justify-between items-center border border-teal-100 shadow-sm">
                                       <div>
                                           <div className="font-black text-teal-900">{m.n}</div>
-                                          <div className="text-[10px] font-bold text-gray-400">{m.d} • {m.block.toUpperCase()} ({m.time})</div>
+                                          <div className="text-[10px] font-bold text-gray-400">{m.d} • <span className={m.block==='am'?'text-orange-500':'text-purple-500'}>{m.block.toUpperCase()}</span> ({m.time})</div>
                                       </div>
                                       <CheckCircle2 size={20} className="text-teal-500" />
                                   </div>
@@ -633,7 +713,7 @@
                        
                        <DashboardCard colorClass={VIVID_THEME.yellow} title="Morning Meds" icon={Sun}>
                           {morningMeds.map(med => (
-                             <div key={med.id} className={`flex items-center justify-between p-4 mb-3 rounded-[2rem] bg-white border-2 border-black/5 ${med.status !== 'pending' ? 'opacity-40' : ''}`}>
+                             <div key={med.id} className={`relative flex items-center justify-between p-4 mb-3 rounded-[2rem] bg-white border-2 border-black/5 ${med.status !== 'pending' ? 'opacity-40' : ''}`}>
                                 <div>
                                     <h4 className="font-black">{med.n}</h4>
                                     <p className="text-[10px] uppercase font-bold text-gray-400">{med.d} • {med.time}</p>
@@ -641,6 +721,7 @@
                                     {med.count === 0 && <span className="text-[9px] font-black text-red-500 bg-red-100 px-2 py-0.5 rounded-full">EMPTY</span>}
                                 </div>
                                 <div className="flex gap-2">
+                                   <button onClick={() => handleDeleteMed(med.id)} className="w-8 h-8 text-red-300 hover:text-red-500 flex items-center justify-center"><Trash2 size={16}/></button>
                                    <button onClick={() => handleOrderRefill(med)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><ShoppingCart size={18}/></button>
                                    <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center"><Check/></button>
                                 </div>
@@ -650,7 +731,7 @@
 
                        <DashboardCard colorClass={VIVID_THEME.purple} title="Evening Meds" icon={Moon}>
                           {eveningMeds.length === 0 ? <p className="text-center opacity-50 font-bold">No evening meds</p> : eveningMeds.map(med => (
-                             <div key={med.id} className={`flex items-center justify-between p-4 mb-3 rounded-[2rem] bg-white border-2 border-black/5 ${med.status !== 'pending' ? 'opacity-40' : ''}`}>
+                             <div key={med.id} className={`relative flex items-center justify-between p-4 mb-3 rounded-[2rem] bg-white border-2 border-black/5 ${med.status !== 'pending' ? 'opacity-40' : ''}`}>
                                 <div>
                                     <h4 className="font-black">{med.n}</h4>
                                     <p className="text-[10px] uppercase font-bold text-gray-400">{med.d} • {med.time}</p>
@@ -658,6 +739,7 @@
                                     {med.count === 0 && <span className="text-[9px] font-black text-red-500 bg-red-100 px-2 py-0.5 rounded-full">EMPTY</span>}
                                 </div>
                                 <div className="flex gap-2">
+                                   <button onClick={() => handleDeleteMed(med.id)} className="w-8 h-8 text-red-300 hover:text-red-500 flex items-center justify-center"><Trash2 size={16}/></button>
                                    <button onClick={() => handleOrderRefill(med)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><ShoppingCart size={18}/></button>
                                    <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center"><Check/></button>
                                 </div>
@@ -706,8 +788,8 @@
                           <div ref={chatEndRef} />
                        </div>
                        <div className="flex gap-2 bg-white p-2 rounded-full border-2 border-gray-100">
-                          <input value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Ask..." className="flex-1 p-3 bg-transparent font-bold outline-none" />
-                          <button onClick={()=>{ if(!chatInput) return; setChatHistory(p=>[...p,{role:'user',text:chatInput}]); setChatInput(''); }} className="p-3 bg-teal-600 text-white rounded-full"><Send/></button>
+                          <input value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Ask Dr. Gemini..." className="flex-1 p-3 bg-transparent font-bold outline-none" />
+                          <button onClick={handleChatSend} className="p-3 bg-teal-600 text-white rounded-full"><Send/></button>
                        </div>
                     </div>
                  )}
@@ -752,7 +834,7 @@
                        <input type="password" value={apiKeys.gemini} onChange={e=>{setApiKeys({...apiKeys, gemini:e.target.value.trim()}); setApiStatus('unknown');}} className="w-full p-4 bg-[#333] rounded-2xl text-white font-mono text-xs mt-1 mb-2" />
                        
                        <div className="flex gap-2 mb-4">
-                           <button onClick={discoverAndConnect} className={`flex-1 py-3 ${apiStatus==='online'?'bg-green-600':'bg-teal-600'} text-white font-black rounded-2xl uppercase text-xs flex items-center justify-center gap-2`}>
+                           <button onClick={()=>discoverAndConnect()} className={`flex-1 py-3 ${apiStatus==='online'?'bg-green-600':'bg-teal-600'} text-white font-black rounded-2xl uppercase text-xs flex items-center justify-center gap-2`}>
                                {apiStatus==='online' ? 'Connected' : 'Verify Connection'} {apiStatus==='online' && <CheckCircle2 size={14}/>}
                            </button>
                            {apiStatus === 'online' && activeModel && (
@@ -778,6 +860,16 @@
 
               <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handlePillScan}/>
               <input type="file" ref={scriptInputRef} hidden accept="image/*,application/pdf" onChange={handleScriptUpload}/>
+              
+              {/* Floating Add Button */}
+              {activeTab === 'home' && (
+                  <button 
+                    onClick={() => setShowAddMedModal(true)} 
+                    className="fixed bottom-28 right-6 w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-2xl z-50 border-4 border-white hover:scale-110 transition-transform"
+                  >
+                    <Plus size={32} strokeWidth={3} />
+                  </button>
+              )}
 
               <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-teal-50 px-6 py-4 pb-8 flex justify-between items-center z-[800] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                  <button onClick={()=>setActiveTab('home')} className={activeTab==='home'?'text-teal-600':'text-gray-300'}><Sun size={24}/></button>
