@@ -3,23 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MASTER MEDS PRO - V7.4</title>
-    <!-- Tailwind CSS -->
+    <title>MASTER MEDS PRO - V7.8 (STABLE)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Lucide React -->
     <script>
-        // Lucide React needs a 'react' global, but React UMD provides 'React'
         window.react = window.React;
     </script>
     <script src="https://unpkg.com/lucide-react"></script>
-    <!-- Babel Standalone for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         @keyframes pulse-soft { 0%, 100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.05); opacity: 0.8; } }
         .animate-pulse-soft { animation: pulse-soft 2s infinite ease-in-out; }
+        @keyframes flash-red { 0%, 100% { background-color: #ef4444; } 50% { background-color: #b91c1c; } }
+        .animate-flash-red { animation: flash-red 1.5s infinite; }
     </style>
 </head>
 <body class="bg-[#F5F5F5] text-[#212121] font-sans">
@@ -37,16 +34,8 @@
           MessageCircle, Send, Download, BarChart3, Trophy, Lock, Key,
           Leaf, Apple, Utensils, Zap, BedDouble, Clock, Mic, FolderOpen,
           Share2, FileJson, AlertTriangle, Coffee, Sunrise, Sunset, ToggleLeft, ToggleRight,
-          Phone, Eye, CloudRain, Wind, ThermometerSun, Mail, Save
+          Phone, Eye, CloudRain, Wind, ThermometerSun, Mail, Save, Siren
         } = LucideReact;
-
-        /**
-         * MASTER MEDS PRO - V7.4 (FULL REWIRE)
-         * - Feature: Dynamic Diet Tab (Toggleable)
-         * - Feature: Editable Emergency Contact
-         * - Feature: WhatsApp Clinical Sharing
-         * - Feature: JSON Data Backup
-         */
 
         // --- ASSETS & CONSTANTS ---
         const VIVID_THEME = {
@@ -58,7 +47,8 @@
           red: "bg-[#FFEBEE] border-[#FFCDD2] text-[#B71C1C]",
           black: "bg-[#000000] border-[#333333] text-[#FFFFFF]",
           green: "bg-[#E8F5E9] border-[#A5D6A7] text-[#1B5E20]",
-          purple: "bg-[#F3E5F5] border-[#E1BEE7] text-[#4A148C]"
+          purple: "bg-[#F3E5F5] border-[#E1BEE7] text-[#4A148C]",
+          sos: "bg-red-50 border-red-200 text-red-700"
         };
 
         const LIFESTYLE_TAGS = [
@@ -73,19 +63,45 @@
         const QUADRANTS = ['UL', 'UR', 'LL', 'LR'];
         const DAYS_OF_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-        // --- HELPERS ---
+        // --- ROBUST HELPERS ---
         const safeJsonParse = (str) => {
           try {
-            // Remove markdown code blocks if present
-            const cleanStr = str.replace(/```json\n?|\n?```/g, "").trim();
+            let cleanStr = str.replace(/```json\n?|\n?```/g, "").trim();
+            const firstBrace = cleanStr.indexOf('{');
+            const lastBrace = cleanStr.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                cleanStr = cleanStr.substring(firstBrace, lastBrace + 1);
+            }
             return JSON.parse(cleanStr);
           } catch (e) {
-            console.error("JSON Parse Error:", e, str);
+            console.error("JSON Parse Error:", e);
             return null;
           }
         };
 
-        // --- COMPONENTS ---
+        const openVaultItem = (v) => {
+            const data = v.data || v.image;
+            if (!data) return;
+            try {
+                if (data.startsWith('data:')) {
+                    const arr = data.split(',');
+                    const mime = arr[0].match(/:(.*?);/)[1];
+                    const bstr = atob(arr[1]);
+                    let n = bstr.length;
+                    const u8arr = new Uint8Array(n);
+                    while(n--) u8arr[n] = bstr.charCodeAt(n);
+                    const blob = new Blob([u8arr], {type:mime});
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                    setTimeout(() => URL.revokeObjectURL(url), 60000);
+                } else {
+                    window.open(data, '_blank');
+                }
+            } catch (e) {
+                const w = window.open("");
+                w.document.write(`<iframe width='100%' height='100%' src='${data}'></iframe>`);
+            }
+        };
 
         const DashboardCard = ({ children, colorClass, title, icon: Icon, badge }) => (
           <div className={`p-6 md:p-8 rounded-[2.5rem] md:rounded-[3rem] border-2 border-black/10 shadow-[8px_8px_0px_rgba(0,0,0,0.05)] ${colorClass} mb-8 overflow-visible`}>
@@ -107,15 +123,16 @@
         // --- MAIN APP ---
 
         function App() {
-          // --- STATE ---
           const [activeTab, setActiveTab] = useState('home');
           const [loading, setLoading] = useState(false);
           const [apiKeys, setApiKeys] = useState({ gemini: '' });
           const [pharmacy, setPharmacy] = useState({ name: '', phone: '', email: '' });
-          const [emergencyContact, setEmergencyContact] = useState('');
+          const [emergency, setEmergency] = useState({ name: '', phone: '' }); // SOS State
+          const [showSOSModal, setShowSOSModal] = useState(false);
           const [now, setNow] = useState(new Date());
 
           const fileInputRef = useRef(null);
+          const scriptInputRef = useRef(null);
           const chatEndRef = useRef(null);
 
           const [isListening, setIsListening] = useState(false);
@@ -123,7 +140,7 @@
 
           const [meds, setMeds] = useState([
             { id: 1, n: "Cozaar", d: "100mg", block: 'am', status: 'pending', time: '08:00', schedule: DAYS_OF_WEEK, count: 12 },
-            { id: 2, n: "Vitamin D", d: "1000IU", block: 'am', status: 'pending', time: '09:00', schedule: DAYS_OF_WEEK, count: 28 },
+            { id: 2, n: "Vitamin D", d: "1000IU", block: 'am', status: 'pending', time: '09:00', schedule: DAYS_OF_WEEK, count: 0 }, 
             { id: 3, n: "Lyrica", d: "100mg", block: 'pm', status: 'pending', time: '20:00', schedule: DAYS_OF_WEEK, count: 5 },
             { id: 4, n: "Magnesium", d: "500mg", block: 'pm', status: 'pending', time: '21:00', schedule: DAYS_OF_WEEK, count: 15 },
             { id: 5, n: "Humira", d: "40mg", block: 'cycle', status: 'pending', time: 'Every 14 Days', schedule: ['Fri'], count: 2 },
@@ -134,7 +151,6 @@
           const [diary, setDiary] = useState([]);
           const [diaryInput, setDiaryInput] = useState("");
           const [selectedTags, setSelectedTags] = useState([]);
-
           const [lastInjection, setLastInjection] = useState({ site: 'LL', date: new Date().toISOString() });
           const [humiraCycle, setHumiraCycle] = useState({ anchorDate: "2026-01-23", cycleDays: 14 });
 
@@ -145,14 +161,13 @@
           const [flareForecast, setFlareForecast] = useState(null);
           const [showInjectionPrep, setShowInjectionPrep] = useState(false);
           const [selectedInjectionSite, setSelectedInjectionSite] = useState(null);
-
           const [chatHistory, setChatHistory] = useState([{ role: 'model', text: "Hello! I'm your Medical Assistant. I can track your meds, analyze your diet, and help with interactions!" }]);
           const [chatInput, setChatInput] = useState("");
 
-          // --- COMPUTED ---
           const morningMeds = useMemo(() => meds.filter(m => m.block === 'am'), [meds]);
           const eveningMeds = useMemo(() => meds.filter(m => m.block === 'pm'), [meds]);
           const cycleMeds = useMemo(() => meds.filter(m => m.block === 'cycle'), [meds]);
+          const finishedMeds = useMemo(() => meds.filter(m => m.count === 0), [meds]);
 
           const remainingHumiraDays = useMemo(() => {
             const anchor = new Date(humiraCycle.anchorDate);
@@ -164,38 +179,38 @@
           const hasPending = meds.some(m => m.status === 'pending');
           const shouldShout = hasPending && (now.getHours() < 12 || now.getHours() > 18);
 
-          // --- PERSISTENCE ---
           useEffect(() => {
-            const saved = localStorage.getItem('master_meds_v7_4_final');
+            const saved = localStorage.getItem('master_meds_v7_8_stable');
             if (saved) {
-              const data = JSON.parse(saved);
-              if (data.meds) setMeds(data.meds);
-              if (data.stats) setStats(data.stats);
-              if (data.vault) setVault(data.vault);
-              if (data.diary) setDiary(data.diary);
-              if (data.apiKeys) setApiKeys(data.apiKeys);
-              if (data.pharmacy) setPharmacy(data.pharmacy);
-              if (data.humiraCycle) setHumiraCycle(data.humiraCycle);
-              if (data.lastInjection) setLastInjection(data.lastInjection);
-              if (data.emergencyContact) setEmergencyContact(data.emergencyContact);
-              if (data.dietPlan) setDietPlan(data.dietPlan);
-              if (typeof data.showDietModule === 'boolean') setShowDietModule(data.showDietModule);
+              try {
+                const data = JSON.parse(saved);
+                if (data.meds) setMeds(data.meds);
+                if (data.stats) setStats(data.stats);
+                if (data.vault) setVault(data.vault);
+                if (data.diary) setDiary(data.diary);
+                if (data.apiKeys) setApiKeys(data.apiKeys);
+                if (data.pharmacy) setPharmacy(data.pharmacy);
+                if (data.humiraCycle) setHumiraCycle(data.humiraCycle);
+                if (data.lastInjection) setLastInjection(data.lastInjection);
+                if (data.emergency) setEmergency(data.emergency); 
+                if (data.dietPlan) setDietPlan(data.dietPlan);
+                if (typeof data.showDietModule === 'boolean') setShowDietModule(data.showDietModule);
+              } catch (e) { console.error("Load Error", e); }
             }
             const ticker = setInterval(() => setNow(new Date()), 60000);
             return () => clearInterval(ticker);
           }, []);
 
           useEffect(() => {
-            localStorage.setItem('master_meds_v7_4_final', JSON.stringify({
-              meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergencyContact, dietPlan, pharmacy, showDietModule
-            }));
-          }, [meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergencyContact, dietPlan, pharmacy, showDietModule]);
+            try {
+                localStorage.setItem('master_meds_v7_8_stable', JSON.stringify({
+                  meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergency, dietPlan, pharmacy, showDietModule
+                }));
+            } catch (e) { console.warn("Storage Quota", e); }
+          }, [meds, stats, vault, diary, apiKeys, humiraCycle, lastInjection, emergency, dietPlan, pharmacy, showDietModule]);
 
-          useEffect(() => {
-            chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-          }, [chatHistory, activeTab]);
+          useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatHistory, activeTab]);
 
-          // --- HELPERS ---
           const updateXP = (amount) => {
             setStats(prev => {
               const newXP = prev.xp + amount;
@@ -206,33 +221,46 @@
           const handleMedToggle = (id, action) => {
             setMeds(prev => prev.map(m => {
               if (m.id === id) {
-                if (action === 'take' && m.status !== 'taken') {
-                  updateXP(50);
-                  return { ...m, status: 'taken', count: Math.max(0, m.count - 1) };
-                }
+                if (action === 'take' && m.status !== 'taken') { updateXP(50); return { ...m, status: 'taken', count: Math.max(0, m.count - 1) }; }
                 return { ...m, status: action === 'take' ? 'taken' : 'skipped' };
               }
               return m;
             }));
           };
 
+          // --- SOS & REFILL LOGIC ---
+          const handleBulkRefill = () => {
+             if (!pharmacy.phone) { setActiveTab('settings'); return setTimeout(() => alert("Please configure your Pharmacy WhatsApp number in the Admin tab."), 100); }
+             if (finishedMeds.length === 0) return alert("No meds need refilling!");
+             
+             const cleanPhone = pharmacy.phone.replace(/[^0-9]/g, '');
+             const list = finishedMeds.map(m => `- ${m.n} (${m.d})`).join('\n');
+             const text = `Hi ${pharmacy.name || 'Pharmacy'}, I need to order refills for the following finished medications:\n\n${list}\n\nPlease let me know when they are ready.`;
+             window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+          };
+
           const handleOrderRefill = (med) => {
-            if (!pharmacy.phone) {
-                setActiveTab('settings');
-                return setTimeout(() => alert("Please configure your Pharmacy WhatsApp number in the Admin tab."), 100);
-            }
+            if (!pharmacy.phone) { setActiveTab('settings'); return setTimeout(() => alert("Please configure your Pharmacy WhatsApp number in the Admin tab."), 100); }
             const cleanPhone = pharmacy.phone.replace(/[^0-9]/g, '');
             const text = `Hi ${pharmacy.name || 'Pharmacy'}, I would like to order a refill for:\n\n💊 *${med.n}* (${med.d})\n\nPlease let me know when it is ready.`;
             window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
           };
 
+          const handleSOS = (method) => {
+             if (!emergency.phone) { setActiveTab('settings'); return setTimeout(() => alert("Please configure Emergency Contact in Admin tab."), 100); }
+             const cleanPhone = emergency.phone.replace(/[^0-9]/g, '');
+             if (method === 'call') {
+                 window.open(`tel:${cleanPhone}`);
+             } else {
+                 const text = `SOS! I need help. My current location is... (Please check on me).`;
+                 window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, '_blank');
+             }
+             setShowSOSModal(false);
+          };
+
           const handleShareReport = () => {
             const text = `*MY CLINICAL REPORT*\n\n*Wellness Score:* ${stats.wellness}%\n*Adherence Level:* ${stats.level}\n\n*Latest Analysis:*\n${safetyAnalysis?.summary || "No recent analysis."}\n\n*Current Flare Risk:* ${flareForecast?.risk || "Unknown"}`;
-            if(navigator.share) {
-               navigator.share({ title: 'My Health Report', text: text }).catch(console.error);
-            } else {
-               window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-            }
+            if(navigator.share) { navigator.share({ title: 'My Health Report', text: text }).catch(console.error); } else { window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); }
           };
 
           const handleExportData = () => {
@@ -253,17 +281,14 @@
             const recognition = new SpeechRecognition();
             recognition.onstart = () => setIsListening(true);
             recognition.onend = () => setIsListening(false);
-            recognition.onresult = (event) => {
-               const transcript = event.results[0][0].transcript;
-               setter(prev => (prev ? prev + " " : "") + transcript);
-            };
+            recognition.onresult = (event) => { setter(prev => (prev ? prev + " " : "") + event.results[0][0].transcript); };
             recognition.start();
           };
 
-          // --- API LOGIC ---
+          // --- STABILIZED AI ENGINE (GEMINI 1.5 FLASH LATEST) ---
           const fetchWithRetry = async (url, options) => {
             const res = await fetch(url, options);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) { const errBody = await res.json().catch(()=>({})); throw new Error(errBody.error?.message || `HTTP ${res.status}`); }
             return await res.json();
           };
 
@@ -274,7 +299,7 @@
                 const medHistory = meds.filter(m => m.status === 'taken').map(m => m.n).join(', ');
                 const recentDiary = diary.slice(0, 10).map(d => `${d.time}: ${d.text}`).join('\n');
                 const prompt = `Act as a Senior Rheumatologist. Analyze: Meds: ${medHistory}. Diary: ${recentDiary}. Task: Pattern/Trigger analysis. Return JSON: {"interactions": [], "correlations": [], "summary": ""}`;
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKeys.gemini}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
@@ -282,19 +307,19 @@
                 setSafetyAnalysis(safeJsonParse(data.candidates[0].content.parts[0].text));
                 setShowSafetyModal(true);
                 updateXP(100);
-            } catch (e) { alert("Analysis failed."); } finally { setLoading(false); }
+            } catch (e) { alert(`Analysis Error: ${e.message}`); } finally { setLoading(false); }
           };
 
           const generateFlareForecast = async () => {
             if (!apiKeys.gemini || !selectedTags.length) return;
             try {
               const prompt = `Health Helper. Tags: ${selectedTags.join(', ')}. Predict Flare Risk (Low/Medium/High) and 1 tip. JSON: {"risk": "", "tip": ""}`;
-              const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+              const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKeys.gemini}`, {
                   method: 'POST', headers: {'Content-Type': 'application/json'},
                   body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
               });
               setFlareForecast(safeJsonParse(data.candidates[0].content.parts[0].text));
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("Forecast Error:", e.message); }
           };
 
           useEffect(() => { if (selectedTags.length > 0) generateFlareForecast(); }, [selectedTags]);
@@ -304,13 +329,13 @@
             setLoading(true);
             try {
                 const prompt = `1-day Clinical Meal Plan for meds: [${meds.map(m=>m.n).join(',')}]. JSON: {"preferredFoods": [], "meals": [], "hydrationGoal": ""}`;
-                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                const data = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKeys.gemini}`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
                 setDietPlan(safeJsonParse(data.candidates[0].content.parts[0].text));
                 updateXP(50);
-            } catch (e) { alert("Meal plan failed."); } finally { setLoading(false); }
+            } catch (e) { alert(`Diet Plan Error: ${e.message}`); } finally { setLoading(false); }
           };
 
           const handlePillScan = async (e) => {
@@ -322,49 +347,76 @@
                const base64 = reader.result.split(',')[1];
                try {
                  const prompt = `Identify med from image. JSON: {"name": "", "dosage": "", "schedule": []}`;
-                 const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeys.gemini}`, {
+                 const res = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKeys.gemini}`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: "image/png", data: base64 } }] }], generationConfig: { responseMimeType: "application/json" } })
                  });
                  const result = safeJsonParse(res.candidates[0].content.parts[0].text);
-                 setVault(prev => [{ id: Date.now(), name: result.name, date: new Date().toLocaleDateString(), image: reader.result }, ...prev]);
+                 setVault(prev => [{ id: Date.now(), name: result.name, date: new Date().toLocaleDateString(), data: reader.result, type: 'image' }, ...prev]);
                  setMeds(prev => [...prev, { id: Date.now(), n: result.name, d: result.dosage, block: 'am', status: 'pending', count: 30, schedule: result.schedule || DAYS_OF_WEEK }]);
                  updateXP(100);
-               } catch (err) { alert("Scan failed"); } finally { setLoading(false); }
+               } catch (err) { alert(`Scan Error: ${err.message}`); } finally { setLoading(false); }
             };
             reader.readAsDataURL(file);
+          };
+
+          const handleScriptUpload = (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              setLoading(true);
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                  const isPdf = file.type.includes('pdf');
+                  const newItem = { id: Date.now(), name: file.name, date: new Date().toLocaleDateString(), data: reader.result, type: isPdf ? 'pdf' : 'image', mime: file.type };
+                  setVault(prev => [newItem, ...prev]);
+                  updateXP(25);
+                  setLoading(false);
+              };
+              reader.readAsDataURL(file);
           };
 
           return (
             <div className="pb-40">
               {shouldShout && <div className="fixed inset-0 z-[50] pointer-events-none border-[12px] border-red-500/30 animate-pulse"></div>}
 
-              <header className="pt-8 pb-6 px-6 bg-white border-b-8 border-teal-50 sticky top-0 z-[100] flex justify-between items-center shadow-sm">
-                 <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-white border-4 border-teal-100 p-1 flex items-center justify-center">
-                       <HeartPulse size={40} className="text-teal-600" />
-                    </div>
-                    <div>
-                       <h1 className="text-3xl font-black text-[#212121] leading-none tracking-tighter">MASTER<br/><span className="text-teal-600">MEDS PRO</span></h1>
-                       <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v7.4 Rewired</p>
-                    </div>
-                 </div>
-                 <div className="flex flex-col items-end">
-                    <div className="flex items-center gap-2 bg-teal-50 px-3 py-1 rounded-full border border-teal-100">
-                       <Trophy size={14} className="text-yellow-500"/>
-                       <span className="font-black text-teal-800 text-xs">LVL {stats.level}</span>
-                    </div>
-                    <div className="w-24 h-2 bg-gray-200 rounded-full mt-2 overflow-hidden">
-                       <div className="h-full bg-teal-500 transition-all duration-1000" style={{ width: `${stats.wellness}%` }}></div>
-                    </div>
-                 </div>
+              <header className="pt-8 pb-6 px-6 bg-white border-b-8 border-teal-50 sticky top-0 z-[100] flex justify-between items-center shadow-sm relative">
+                  <div className="flex items-center gap-4">
+                     <div className="w-16 h-16 rounded-2xl bg-white border-4 border-teal-100 p-1 flex items-center justify-center">
+                        <HeartPulse size={40} className="text-teal-600" />
+                     </div>
+                     <div>
+                        <h1 className="text-3xl font-black text-[#212121] leading-none tracking-tighter">MASTER<br/><span className="text-teal-600">MEDS PRO</span></h1>
+                        <p className="text-[10px] font-bold text-teal-300 uppercase mt-1 tracking-widest">v7.8 Stable</p>
+                     </div>
+                  </div>
+                  <div className="flex gap-3">
+                     {/* SOS Button */}
+                     <button onClick={() => setShowSOSModal(true)} className="w-14 h-14 bg-red-600 rounded-2xl shadow-lg border-b-4 border-red-800 flex items-center justify-center animate-flash-red text-white">
+                        <Siren size={28} />
+                     </button>
+                  </div>
               </header>
 
               {loading && (
                 <div className="fixed inset-0 bg-white/90 backdrop-blur-xl z-[999] flex flex-col items-center justify-center">
                     <Loader2 size={64} className="text-teal-600 animate-spin" />
-                    <p className="font-black text-xl uppercase tracking-widest text-teal-600 animate-pulse mt-4">Consulting AI...</p>
+                    <p className="font-black text-xl uppercase tracking-widest text-teal-600 animate-pulse mt-4">Working...</p>
                 </div>
+              )}
+
+              {showSOSModal && (
+                  <div className="fixed inset-0 z-[999] flex items-center justify-center p-6 bg-red-900/90 backdrop-blur-md">
+                      <div className="bg-white w-full max-w-sm rounded-[2.5rem] p-8 shadow-2xl text-center">
+                          <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />
+                          <h2 className="text-3xl font-black uppercase text-red-600 mb-2">Emergency</h2>
+                          <p className="text-sm font-bold text-gray-500 mb-8">Contacting: {emergency.name || "Not Configured"}</p>
+                          <div className="space-y-4">
+                              <button onClick={() => handleSOS('call')} className="w-full py-5 bg-green-500 text-white font-black text-xl rounded-2xl uppercase shadow-lg flex items-center justify-center gap-3"><Phone/> Call Now</button>
+                              <button onClick={() => handleSOS('whatsapp')} className="w-full py-5 bg-green-600 text-white font-black text-xl rounded-2xl uppercase shadow-lg flex items-center justify-center gap-3"><MessageCircle/> WhatsApp</button>
+                              <button onClick={() => setShowSOSModal(false)} className="w-full py-4 bg-gray-200 text-gray-600 font-black rounded-2xl uppercase">Cancel</button>
+                          </div>
+                      </div>
+                  </div>
               )}
 
               {showSafetyModal && safetyAnalysis && (
@@ -397,6 +449,22 @@
               <main className="px-6 mt-8">
                  {activeTab === 'home' && (
                     <>
+                       {/* Refill Alert Section */}
+                       {finishedMeds.length > 0 && (
+                          <div className="mb-8 p-6 rounded-[2.5rem] bg-red-50 border-2 border-red-100 flex flex-col gap-4">
+                              <div className="flex items-center gap-4">
+                                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600"><AlertCircle size={24}/></div>
+                                  <div>
+                                      <h3 className="text-red-800 font-black text-lg leading-none">REFILL NEEDED</h3>
+                                      <p className="text-red-600 text-xs font-bold mt-1">{finishedMeds.length} Meds are empty</p>
+                                  </div>
+                              </div>
+                              <button onClick={handleBulkRefill} className="w-full py-3 bg-red-600 text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2">
+                                  <ShoppingCart size={18}/> Order All via WhatsApp
+                              </button>
+                          </div>
+                       )}
+
                        {flareForecast && (
                          <div className="mb-8 p-6 rounded-[2.5rem] border-2 bg-blue-50 border-blue-100 flex items-center gap-6">
                             <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center text-2xl">{flareForecast.risk === 'High' ? '⛈️' : '🌤️'}</div>
@@ -407,27 +475,15 @@
                             </div>
                          </div>
                        )}
-
-                       {cycleMeds.length > 0 && (
-                          <div className="mb-8 p-6 rounded-[2.5rem] bg-white border-2 border-teal-100 shadow-[8px_8px_0px_#e0f2f1]">
-                             <div className="flex justify-between items-center mb-4">
-                                <div className="flex items-center gap-3"><Syringe size={24} className="text-teal-600"/><h3 className="font-black uppercase tracking-tight">Biologics</h3></div>
-                                <span className="text-xs font-black text-teal-600">{remainingHumiraDays} DAYS LEFT</span>
-                             </div>
-                             <div className="h-4 w-full bg-teal-50 rounded-full border border-teal-100 overflow-hidden mb-6"><div className="h-full bg-teal-500" style={{ width: `${((14 - remainingHumiraDays) / 14) * 100}%` }}></div></div>
-                             {cycleMeds.map(med => (
-                                <div key={med.id} className="flex items-center justify-between p-4 mb-3 rounded-2xl bg-teal-50 border-2 border-teal-200">
-                                   <div className="font-black">{med.n}</div>
-                                   <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-teal-500 text-white rounded-xl flex items-center justify-center"><Check/></button>
-                                </div>
-                             ))}
-                          </div>
-                       )}
-
+                       
                        <DashboardCard colorClass={VIVID_THEME.yellow} title="Morning Meds" icon={Sun}>
                           {morningMeds.map(med => (
                              <div key={med.id} className={`flex items-center justify-between p-4 mb-3 rounded-[2rem] bg-white border-2 border-black/5 ${med.status !== 'pending' ? 'opacity-40' : ''}`}>
-                                <div><h4 className="font-black">{med.n}</h4><p className="text-[10px] uppercase font-bold text-gray-400">{med.d} • {med.time}</p></div>
+                                <div>
+                                    <h4 className="font-black">{med.n}</h4>
+                                    <p className="text-[10px] uppercase font-bold text-gray-400">{med.d} • {med.time}</p>
+                                    {med.count === 0 && <span className="text-[9px] font-black text-red-500 bg-red-100 px-2 py-0.5 rounded-full">EMPTY</span>}
+                                </div>
                                 <div className="flex gap-2">
                                    <button onClick={() => handleOrderRefill(med)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center"><ShoppingCart size={18}/></button>
                                    <button onClick={() => handleMedToggle(med.id, 'take')} className="w-10 h-10 bg-green-500 text-white rounded-xl flex items-center justify-center"><Check/></button>
@@ -435,13 +491,11 @@
                              </div>
                           ))}
                        </DashboardCard>
-
                        <DashboardCard colorClass={VIVID_THEME.teal} title="Injection Site" icon={Syringe}>
                           <div className="grid grid-cols-2 gap-4">
                              {QUADRANTS.map(q => <button key={q} onClick={() => { setSelectedInjectionSite(q); setShowInjectionPrep(true); }} className={`p-4 rounded-[1.5rem] font-black text-xl ${lastInjection.site === q ? 'bg-white text-teal-900 border-4 border-teal-100' : 'bg-teal-900/20 text-teal-100/50'}`}>{q}</button>)}
                           </div>
                        </DashboardCard>
-
                        <DashboardCard colorClass={VIVID_THEME.panda} title="Diary" icon={FileText}>
                           <div className="flex flex-wrap gap-2 mb-4">
                              {LIFESTYLE_TAGS.map((tag, i) => (
@@ -487,8 +541,28 @@
                  {activeTab === 'vault' && (
                     <DashboardCard colorClass={VIVID_THEME.mint} title="Vault" icon={FolderOpen}>
                        <div className="grid grid-cols-2 gap-4">
-                          {vault.map(v=>(<div key={v.id} className="bg-white p-2 rounded-xl border-2"><img src={v.image} className="w-full h-20 object-cover rounded-lg mb-1"/><h4 className="font-black text-[10px] truncate">{v.name}</h4></div>))}
-                          <div onClick={()=>fileInputRef.current.click()} className="bg-teal-100/50 p-2 rounded-xl border-2 border-dashed border-teal-200 flex flex-col items-center justify-center min-h-[100px] cursor-pointer"><Camera className="text-teal-400"/><span className="text-[10px] font-black text-teal-600">SCAN</span></div>
+                          {vault.map(v => (
+                             <div key={v.id} onClick={() => openVaultItem(v)} className="bg-white p-2 rounded-xl border-2 border-teal-50 hover:border-teal-300 transition-all cursor-pointer relative group">
+                                {v.type === 'pdf' ? (
+                                    <div className="w-full h-20 bg-red-50 flex flex-col items-center justify-center rounded-lg mb-1 border border-red-100">
+                                        <FileText className="text-red-400 group-hover:scale-110 transition-transform" size={24}/>
+                                        <span className="text-[8px] font-black text-red-300 mt-1 uppercase">PDF Document</span>
+                                    </div>
+                                ) : (
+                                    <img src={v.data || v.image} className="w-full h-20 object-cover rounded-lg mb-1" />
+                                )}
+                                <h4 className="font-black text-[10px] truncate">{v.name}</h4>
+                                <p className="text-[8px] text-gray-400 font-bold">{v.date}</p>
+                             </div>
+                          ))}
+                          <div onClick={()=>fileInputRef.current.click()} className="bg-teal-100/50 p-2 rounded-xl border-2 border-dashed border-teal-200 flex flex-col items-center justify-center min-h-[100px] cursor-pointer hover:bg-teal-100 transition-colors">
+                             <Camera className="text-teal-400 mb-1"/>
+                             <span className="text-[9px] font-black text-teal-600 uppercase text-center leading-tight">Identify<br/>Pill</span>
+                          </div>
+                          <div onClick={()=>scriptInputRef.current.click()} className="bg-blue-100/50 p-2 rounded-xl border-2 border-dashed border-blue-200 flex flex-col items-center justify-center min-h-[100px] cursor-pointer hover:bg-blue-100 transition-colors">
+                             <FileText className="text-blue-400 mb-1"/>
+                             <span className="text-[9px] font-black text-blue-600 uppercase text-center leading-tight">Upload<br/>Script</span>
+                          </div>
                        </div>
                     </DashboardCard>
                  )}
@@ -496,8 +570,16 @@
                  {activeTab === 'settings' && (
                     <DashboardCard colorClass={VIVID_THEME.black} title="Admin" icon={Lock}>
                        <label className="text-[10px] font-black text-gray-500 uppercase ml-2">API Key</label>
-                       <input type="password" value={apiKeys.gemini} onChange={e=>setApiKeys({...apiKeys, gemini:e.target.value})} className="w-full p-4 bg-[#333] rounded-2xl text-white font-mono text-xs mt-1 mb-4" />
+                       <input type="password" value={apiKeys.gemini} onChange={e=>setApiKeys({...apiKeys, gemini:e.target.value.trim()})} className="w-full p-4 bg-[#333] rounded-2xl text-white font-mono text-xs mt-1 mb-4" />
+                       
+                       <label className="text-[10px] font-black text-gray-500 uppercase ml-2">Pharmacy Contact</label>
+                       <input value={pharmacy.name} onChange={e=>setPharmacy({...pharmacy, name:e.target.value})} placeholder="Pharmacy Name (e.g. Dis-Chem)" className="w-full p-4 bg-[#333] rounded-2xl text-white text-xs mt-1 mb-2" />
                        <input value={pharmacy.phone} onChange={e=>setPharmacy({...pharmacy, phone:e.target.value})} placeholder="WhatsApp Number" className="w-full p-4 bg-[#333] rounded-2xl text-white text-xs mb-4" />
+                       
+                       <label className="text-[10px] font-black text-red-400 uppercase ml-2">Emergency (SOS)</label>
+                       <input value={emergency.name} onChange={e=>setEmergency({...emergency, name:e.target.value})} placeholder="Contact Name (e.g. Mom)" className="w-full p-4 bg-[#333] rounded-2xl text-white text-xs mt-1 mb-2" />
+                       <input value={emergency.phone} onChange={e=>setEmergency({...emergency, phone:e.target.value})} placeholder="Emergency Phone" className="w-full p-4 bg-[#333] rounded-2xl text-white text-xs mb-4" />
+
                        <button onClick={handleExportData} className="w-full py-4 bg-[#444] text-white font-black rounded-2xl uppercase text-xs mb-4">Export Backup</button>
                        <button onClick={()=>{ if(confirm("Reset?")) localStorage.clear(); window.location.reload(); }} className="w-full py-4 bg-red-900 text-white font-black rounded-2xl uppercase text-xs">Factory Reset</button>
                     </DashboardCard>
@@ -505,6 +587,7 @@
               </main>
 
               <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handlePillScan}/>
+              <input type="file" ref={scriptInputRef} hidden accept="image/*,application/pdf" onChange={handleScriptUpload}/>
 
               <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-teal-50 px-6 py-4 pb-8 flex justify-between items-center z-[800] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                  <button onClick={()=>setActiveTab('home')} className={activeTab==='home'?'text-teal-600':'text-gray-300'}><Sun size={24}/></button>
